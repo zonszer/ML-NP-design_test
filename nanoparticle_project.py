@@ -31,14 +31,19 @@ class EmbedCompGPUCB(HypothesisAgent):
         Args:
             candidate_data (pandas.DataFrame): data about the candidates to search over. Must have a "target" column,
                     and at least one additional column that can be used as descriptors.
+
             seed_data (pandas.DataFrame):  data which to fit the Agent to.
+
             n_query (int): number of queries in allowed. Defaults to 1.
+
             beta (float or str): mixing parameter (beta**0.5) for uncertainties in GP-UCB. If a float is given, agent will
                 use the same constant beta throughout the campaign. Defaults to 1.0. Setting this as 'auto' will
                 use the Theorem 1 from Srivanasan et al. to determine the beta during batch design.
                 'auto' has two parameters, 'delta' and 'premultip', which default to 0.1 and 0.05 respectively,
                 but can be modified by passing as kwargs to the agent. if mode is "naive" this can only be a flaot.
+
             kernel (GPy kernel): Kernel object for the GP. Defaults to RBF.
+
             input_dim (int): dimensionality of the embedding space generated with PCA. Should be smaller than the 
                 dimensions of a featurized composition vector.
         """
@@ -78,11 +83,11 @@ class EmbedCompGPUCB(HypothesisAgent):
         if self.kernel is None:
             self.kernel = GPy.kern.RBF(input_dim=self.input_dim)
 
-        X_seed = self.seed_data.drop(columns=["target"], axis=1)
+        X_seed = self.seed_data.drop(columns=["target"], axis=1)        #drop columns=["target"]的这一col
         y_seed = self.seed_data["target"].to_numpy().reshape(-1, 1)
 
         y_m, y_std = np.mean(y_seed), np.std(y_seed)
-        y_seed = (y_seed - y_m) / y_std
+        y_seed = (y_seed - y_m) / y_std                                 #output norm
 
         scaler = StandardScaler()
         scaler.fit(X_seed)
@@ -111,11 +116,11 @@ class EmbedCompGPUCB(HypothesisAgent):
             self.kernel = m.kern
             self.model = m
             y_pred, var = m.predict(
-                pca.transform(scaler.transform(r_candidates.to_numpy().astype(np.float64)))
+                pca.transform(scaler.transform(r_candidates.to_numpy().astype(np.float64))) #r_candidates为remain_candidates
             )
-            t_pred = y_pred * y_std + y_m
-            unc = np.sqrt(var) * y_std
-            self.t_pred = t_pred
+            t_pred = y_pred * y_std + y_m       #tranform to true predict y
+            unc = np.sqrt(var) * y_std          #计算true uncertainty （也是transform过后的）
+            self.t_pred = t_pred            
             self.unc = unc
 
             if self.beta == "auto":
@@ -134,7 +139,7 @@ class EmbedCompGPUCB(HypothesisAgent):
             else:
                 beta = self.beta
 
-            t_pred += unc * beta
+            t_pred += unc * beta            #这里是计算抽样策略的标准      #beta是啥？：可能是超参数之类的
             s = np.argmax(t_pred)
 
             name = r_candidates.index.tolist()[s]
@@ -143,7 +148,7 @@ class EmbedCompGPUCB(HypothesisAgent):
             r_y = np.append(r_y, np.array([y_pred[s]]).reshape(1, 1), axis=0)
             r_candidates = r_candidates.drop(name)
 
-        return self.candidate_data.loc[batch]
+        return self.candidate_data.loc[batch]       #获取所有batch元素所在的pd row
 
 
 # Helper methods used in NP campaigns.
