@@ -1,17 +1,18 @@
 import argparse, datetime
-from utils_ import *
+from utils.utils_ import *
 
 # parser：
 parser = argparse.ArgumentParser(description='GP')
 # str
-# col_labels = ['Element', 'Highest Ratio over Control', 
+parser.add_argument('--model_dir', default='Models/', help='folder to output model checkpoints')
+# col_labels = ['Element', 'Highest Ratio over Control',
 #               'Average Ratio over Control', 'Concentration']
 parser.add_argument('--id', default='XXXX', help='inbatch, epoch')
 parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
                                              'Average Ratio over Control', 'Concentration']", help='   ')       #下午可以改为非++的情况看看loss的计算过程
 parser.add_argument('--data_path', default='PCE1.xlsx', help='  ')
 parser.add_argument('--model', '--y_col_name', default='Average Ratio over Control', help='Highest-Ratio-over-Control  OR  Average-Ratio-over-Control')
-parser.add_argument('--PCA_dim_select_method', 'PCA_dim_M', default='auto', help='Other options: assigned')
+parser.add_argument('--PCA_dim_select_method', '--PCA_dim_M', default='auto', help='Other options: assigned')
 # parser.add_argument('--masks_dir', '--masks', default=None , help='')       #'Datasets/AMOS-views/AMOS-masks'
 # parser.add_argument('--weight_function', '--wf', default='Hessian',
 #                     help='Keypoints are generated with probability ~ weight function. Variants: uniform, Hessian, HessianSqrt, HessianSqrt4')
@@ -50,25 +51,25 @@ def get_args(ipynb=False):
     
     # show in txt file(data neme):
     txt = []
-    if args.Kfold: txt += ['Kfold:' + str(args.Kfold)]
-    if args.ker_lengthscale_upper: txt += ['ker_lengthscale_upper:' + str(args.ker_lengthscale_upper)]
-    if args.ker_var_upper: txt += ['ker_var_upper:' + str(args.ker_var_upper)]
-
     current_time = datetime.datetime.now()
     current_time = current_time.strftime("%m%d-%H_%M")
-    if args.use_concentration: txt += ['UseConcentrationCol ']
     txt += ['id:' + str(args.id)]
     txt += ['T:' + current_time]
-    txt += ['num_ep:' + str(args.num_ep)]
+    txt += ['num_ep:' + str(args.num_restarts)]
     if args.cycle_num: txt += ['cycle_num:' + str(args.cycle_num)]
     txt += ['bs:' + str(args.batch_size)]
     txt += ['seed:' + str(args.seed)]
+    args.model = args.model.replace("-", " ")
     txt += ['model:' + str(args.model)]
     txt += ['PCA_dim:' + str(args.PCA_dim)]
     txt += ['PCA_dim_select_method:' + args.PCA_dim_select_method]
     txt += ['seed:' + str(args.seed)]
-    txt += ['Data_path:' + args.data_path]
+    # txt += ['Data_path:' + args.data_path]
     model_name = '_'.join([str(c) for c in txt])
+    # if args.Kfold: txt += ['Kfold:' + str(args.Kfold)]
+    # if args.ker_lengthscale_upper: txt += ['ker_lengthscale_upper:' + str(args.ker_lengthscale_upper)]
+    # if args.ker_var_upper: txt += ['ker_var_upper:' + str(args.ker_var_upper)]
+    # if args.use_concentration: txt += ['UseConcentrationCol ']
 
     if model_name in [getbase(c) for c in glob(pjoin(args.model_dir, '*'))]:
         printc.red('WARNING: MODEL',model_name,'\nALREADY EXISTS')

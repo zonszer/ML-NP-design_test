@@ -1,6 +1,4 @@
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, PowerTransformer
-import numpy as np
-import pandas as pd
 
 from matminer.featurizers.conversions import StrToComposition, CompositionToOxidComposition
 from matminer.featurizers.composition import ElementProperty, OxidationStates
@@ -14,7 +12,7 @@ import datetime
 from sklearn.decomposition import PCA      
 from train import cross_train_validation, cycle_train
 from sklearn.model_selection import train_test_split
-
+import os
 
 def Preprocessing(path, col_labels):
     df = get_data(path, col_labels)
@@ -27,7 +25,7 @@ def get_data(path, col_labels):
     '''read data'''
     df_pec_data = pd.read_excel(path, header = 1)
     # df_pec_data = df_pec_data.sort_values(['Sample'], ignore_index = True)
-    df_pec_data.columns = col_labels
+    df_pec_data.columns = eval(col_labels)
     df_pec_data.dropna(axis=0, how='all', inplace=True)
     df_pec_data = df_pec_data.reset_index(drop=True)
     return df_pec_data
@@ -91,7 +89,7 @@ def select_train_elems():
 
 def Main(args):
     # 1. Import Data and Preprocessing 
-    df = Preprocessing(args.path, args.col_labels)
+    df = Preprocessing(args.data_path, args.col_labels)
 
     # 2 .Build composition descriptors (from `matminer`)
     descs = Add_extract_descriptors(df, args)
@@ -111,6 +109,10 @@ def Main(args):
         cycle_train([X_train, y_train], [X_test, y_test], args.num_ep, args.ker_lengthscale_upper, args.ker_var_upper)
         plot_CycleTrain(y_list_descr, X_train, X_test)
 
+def init_save(save_name, model_dir, args):
+    os.makedirs(pjoin(model_dir, save_name), exist_ok=True)
+    with open(pjoin(model_dir, save_name, 'setup.txt'), 'w') as f:
+        print('args:\n{}\n'.format(str(args)), file=f)
 
 if __name__ == '__main__':
     current_time = datetime.datetime.now()
@@ -118,6 +120,7 @@ if __name__ == '__main__':
     with measure_time():
         args, save_name = get_args()
         become_deterministic(args.seed)
+        init_save(save_name, args.model_dir, args)
         printc.blue( '\nsave_name:', save_name, '\n')
 
     Main(args)
