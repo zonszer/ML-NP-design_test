@@ -9,11 +9,11 @@ from sklearn.model_selection import train_test_split
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
 
 
-def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_file_instance):
+def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
     X_train = X; y_train = y
     X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size = 0.2)
 
-    ker = GPy.kern.Matern52(input_dim = len(X_train), ARD =True)     #Matern52有啥讲究吗？
+    ker = GPy.kern.Matern52(input_dim = X_train.shape[1], ARD =True)     #Matern52有啥讲究吗？
     ker.lengthscale.constrain_bounded(1e-2, ker_lengthscale_upper)         #超参数？（好像是posterior 得到的）
     ker.variance.constrain_bounded(1e-2, ker_var_upper)
     gpy_regr = GPRegression(X_train, y_train, ker)#
@@ -22,7 +22,7 @@ def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_uppe
     gpy_regr.randomize()
     gpy_regr.optimize_restarts(num_restarts=num_restarts, verbose=False, messages=False)
 
-    dict1 = {'ker-lengthscale':ker.lengthscale, 'ker-variance': ker.variance, 'Gaussian_noise': gpy_regr.Gaussian_noise}
+    dict1 = {'ker-lengthscale':ker.lengthscale.values, 'ker-variance': ker.variance.values, 'Gaussian_noise_var': gpy_regr.Gaussian_noise.variance.values}
     save_logfile.send(('result', 'model_params:', dict1))
     
     y_pred_train, y_uncer_train= gpy_regr.predict(X_train)
