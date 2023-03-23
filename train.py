@@ -59,8 +59,8 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
                                                                 np.array(uncer_test).std()))
     
     # plot_CrossVal_avg(A, B ,C, D)
-    save_logfile.send('result', 'pearsonr:', dict1)
-
+    save_logfile.send(('result', 'pearsonr:', dict1))
+    save_logfile.send(('model', '', gpy_regr))
     return dict1
 
 

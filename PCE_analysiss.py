@@ -102,7 +102,7 @@ def Main(args):
     # plot_desc_distribution(X, screen_dims=5)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
-        cross_train_validation(X, y, args.Kfold, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_logfile)
+        cross_train_validation(X, y, args.Kfold, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
 
     else:
         X_list, y_list = select_train_elems()
@@ -125,10 +125,10 @@ def save_logfile(save_name, model_dir, args):
                 print('{}:\n{}\n'.format(savename, str(value)), file=f)
                 f.write('\n\n')
         elif saveType == 'model':
-            if savename != None:
-                paths = pjoin(model_dir, save_name, savename + '.pkl')    #
+            if savename != '':
+                paths = pjoin(model_dir, save_name, savename )    #
             else:
-                paths = pjoin(model_dir, save_name, args.id + '.pkl')    #
+                paths = pjoin(model_dir, save_name, args.id)    #
             value.save_model(paths)
         else:
             print('saveType must be args, result, or model')
@@ -140,9 +140,9 @@ if __name__ == '__main__':
         args = get_args()
         become_deterministic(args.seed)
         
-        save_logfile(args.save_name, args.model_dir, args)
-        next(save_logfile)
-        save_logfile.send('args', 'args:', args)
+        save_file_instance = save_logfile(args.save_name, args.model_dir, args)
+        next(save_file_instance)
+        save_file_instance.send(('args', 'args:', args))
 
         printc.blue( '\nsave_name:', args.save_name, '\n')
 
