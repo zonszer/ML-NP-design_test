@@ -12,12 +12,12 @@ parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Co
                                              'Average Ratio over Control', 'Concentration']", help='   ')       #下午可以改为非++的情况看看loss的计算过程
 parser.add_argument('--data_path', default='PCE1.xlsx', help='  ')
 parser.add_argument('--model', '--y_col_name', default='Average Ratio over Control', help='Highest-Ratio-over-Control  OR  Average-Ratio-over-Control')
-parser.add_argument('--PCA_dim_select_method', '--PCA_dim_M', default='auto', help='Other options: assigned')
+parser.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
 # parser.add_argument('--masks_dir', '--masks', default=None , help='')       #'Datasets/AMOS-views/AMOS-masks'
 # parser.add_argument('--weight_function', '--wf', default='Hessian',
 #                     help='Keypoints are generated with probability ~ weight function. Variants: uniform, Hessian, HessianSqrt, HessianSqrt4')
 # int
-parser.add_argument('--num_restarts', '--num_ep', type=int, default=5, help='number of epochs to train')
+parser.add_argument('--num_restarts', type=int, default=5, help='number of epochs to train')
 parser.add_argument('--Kfold', type=int, default=5, help='number of hard neg in loss')
 parser.add_argument('--PCA_dim', type=float, default=0, help='input: float or int. n compoents of PCA when input')
 parser.add_argument('--cycle_num', type=float, default=0, help='cycle_num')
@@ -70,9 +70,10 @@ def get_args(ipynb=False):
     # if args.ker_lengthscale_upper: txt += ['ker_lengthscale_upper:' + str(args.ker_lengthscale_upper)]
     # if args.ker_var_upper: txt += ['ker_var_upper:' + str(args.ker_var_upper)]
     # if args.use_concentration: txt += ['UseConcentrationCol ']
+    args.save_name = model_name
 
     if model_name in [getbase(c) for c in glob(pjoin(args.model_dir, '*'))]:
         printc.red('WARNING: MODEL',model_name,'\nALREADY EXISTS')
     
-    return args, model_name
+    return args
 

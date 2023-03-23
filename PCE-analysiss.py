@@ -98,35 +98,41 @@ def Main(args):
 
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
-    X, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_M, args.PCA_dim)
+    X, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim)
     # plot_desc_distribution(X, screen_dims=5)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
-        cross_train_validation(X, y, args.Kfold, args.num_ep, args.ker_lengthscale_upper, args.ker_var_upper)
+        log_values = cross_train_validation(X, y, args.Kfold, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
+
     else:
         X_list, y_list = select_train_elems()
         X_train, X_test, y_train, y_test = train_test_split(X_list, y_list, test_size = 0.2)
-        cycle_train([X_train, y_train], [X_test, y_test], args.num_ep, args.ker_lengthscale_upper, args.ker_var_upper)
+        log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         plot_CycleTrain(y_list_descr, X_train, X_test)
 
-def init_save(save_name, model_dir, args):
+    return log_values
+
+def save_logfile(save_name, model_dir, strkey, value):
     os.makedirs(pjoin(model_dir, save_name), exist_ok=True)
-    with open(pjoin(model_dir, save_name, 'setup.txt'), 'w') as f:
-        print('args:\n{}\n'.format(str(args)), file=f)
+    with open(pjoin(model_dir, save_name, 'setup.txt'), 'a') as f:
+        print('{}:\n{}\n'.format(strkey, str(value)), file=f)
+        f.write('\n\n')
 
 if __name__ == '__main__':
     current_time = datetime.datetime.now()
     current_time = current_time.strftime("%m%d-%H_%M_%S")
     with measure_time():
-        args, save_name = get_args()
+        args = get_args()
         become_deterministic(args.seed)
-        init_save(save_name, args.model_dir, args)
-        printc.blue( '\nsave_name:', save_name, '\n')
+        save_logfile(args.save_name, args.model_dir, 'args', args)
+        printc.blue( '\nsave_name:', args.save_name, '\n')
 
-    Main(args)
-    
+        log_values = Main(args)
+        save_logfile(args.save_name, args.model_dir, 'result', log_values)
+
+
     printc.green('--------------- Training finished ---------------')
-    print('model_name:', save_name)
+    print('model_name:', args.save_name)
     # writer.close()
 
 

@@ -6,6 +6,8 @@ import numpy as np
 from utils.utils_ import *
 from plot import plot_CrossVal_avg
 
+
+
 def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper, ker_var_upper):
     # when use K fold not use train_test split: 
     X_train = X_norm; y_train = y[:, -1]
@@ -29,15 +31,15 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
         #gpy_regr.Gaussian_noise.variance = (0.01)**2       #这个一般需要怎么调整呢？（好像是posterior 得到的）
         #gpy_regr.Gaussian_noise.variance.fix()
 
+        gpy_regr.randomize()
+        gpy_regr.optimize_restarts(num_restarts=num_restarts, verbose=False, messages=False)
+
         y_pred_train, y_uncer_train = gpy_regr.predict(X_train_fold)
         y_pred_test, y_uncer_test = gpy_regr.predict(X_test_fold)
 
         y_pred_train, y_uncer_train = y_pred_train[:,-1], y_uncer_train[:,-1]
         y_pred_test, y_uncer_test = y_pred_test[:,-1], y_uncer_test[:,-1]
 
-        gpy_regr.randomize()
-        gpy_regr.optimize_restarts(num_restarts=num_restarts, verbose=False, messages=False)
-        
         score_train = pearsonr(y_train_fold, y_pred_train) [0]; scores_train.append(score_train)
         score_test = pearsonr(y_test_fold, y_pred_test) [0]; scores_test.append(score_test)
         # train_score = spearmanr(y_train_fold, y_pred_train) [0]
@@ -46,18 +48,19 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
 
     # plot_CrossVal_avg(uncer_train, uncer_test)
     # plot_CrossVal_avg(scores_train, scores_test)
-    A, B ,C, D = np.array(scores_train).mean(), np.array(scores_train).std(), np.array(scores_test).mean(), np.array(scores_test).std()
-    printc.blue('\n\nTRAIN: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_train).mean(), 
+    dict1 = {'score_train': np.array(scores_train).mean(), 'score_train_std' :np.array(scores_train).std(),
+             'score_test': np.array(scores_test).mean(), 'score_test_std': np.array(scores_test).std()}
+    printc.blue('\nTRAIN: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_train).mean(),
                                                                 np.array(scores_train).std()))
-    printc.yellow('\n\nTEST: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_test).mean(), 
+    printc.yellow('\nTEST: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_test).mean(),
                                                                 np.array(scores_test).std()))
-    printc.blue('\n\nTRAIN: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_train).mean(), 
+    printc.blue('\nTRAIN: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_train).mean(),
                                                                 np.array(uncer_train).std()))
-    printc.yellow('\n\nTEST: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_test).mean(),
+    printc.yellow('\nTEST: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_test).mean(),
                                                                 np.array(uncer_test).std()))
     
     # plot_CrossVal_avg(A, B ,C, D)
-    return A, B ,C ,D 
+    return dict1
 
 
 def cycle_train(train_data, test_data, num_restarts, ker_lengthscale_upper, ker_var_upper):
