@@ -92,8 +92,14 @@ def plt_true_vs_pred(y_true_list, y_pred_list, y_uncer_list, title_str_list, col
         plt.subplots_adjust(wspace = 0.35)
         plt.show()
 
+    def transfer_lst2dict(lstkey: list, lstvalue: list) -> dict:
+        dict1 = {}
+        for i in range(len(lstkey)):
+            dict1[lstkey[i]] = lstvalue[i]
+        return dict1
+
     assert len(cal_methods) == len(scores)
-    return cal_methods, scores
+    return transfer_lst2dict(cal_methods, scores)
 
 def plot_Xy_relation(X, y):
     mi = mutual_info_regression(X, y)   #[616, 132] VS [616, 1]

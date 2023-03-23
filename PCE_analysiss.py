@@ -10,7 +10,7 @@ from utils.utils_ import *
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
 import datetime
 from sklearn.decomposition import PCA      
-from train import cross_train_validation, cycle_train
+from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from sklearn.model_selection import train_test_split
 import os
 
@@ -102,7 +102,9 @@ def Main(args):
     # plot_desc_distribution(X, screen_dims=5)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
-        cross_train_validation(X, y, args.Kfold, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # cross_train_validation(X, y, args.Kfold, args.num_restarts, 
+        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
 
     else:
         X_list, y_list = select_train_elems()
@@ -116,7 +118,7 @@ def save_logfile(save_name, model_dir, args):
     os.makedirs(pjoin(model_dir, save_name), exist_ok=True)
     while True:
         saveType, savename, value = yield
-        if saveType == 'args':
+        if saveType == 'setup':
             with open(pjoin(model_dir, save_name, 'setup.txt'), 'a') as f:
                 print('{}:\n{}\n'.format(savename, str(value)), file=f)
                 f.write('\n\n')
@@ -142,7 +144,7 @@ if __name__ == '__main__':
         
         save_file_instance = save_logfile(args.save_name, args.model_dir, args)
         next(save_file_instance)
-        save_file_instance.send(('args', 'args:', args))
+        save_file_instance.send(('setup', 'args:', args))
 
         printc.blue( '\nsave_name:', args.save_name, '\n')
 

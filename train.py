@@ -5,6 +5,35 @@ from scipy.stats import spearmanr, pearsonr
 import numpy as np
 from utils.utils_ import *
 from plot import plot_CrossVal_avg
+from sklearn.model_selection import train_test_split
+from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
+
+
+def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_file_instance):
+    X_train = X; y_train = y
+    X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size = 0.2)
+
+    ker = GPy.kern.Matern52(input_dim = len(X_train), ARD =True)     #Matern52有啥讲究吗？
+    ker.lengthscale.constrain_bounded(1e-2, ker_lengthscale_upper)         #超参数？（好像是posterior 得到的）
+    ker.variance.constrain_bounded(1e-2, ker_var_upper)
+    gpy_regr = GPRegression(X_train, y_train, ker)#
+    #gpy_regr.Gaussian_noise.variance = (0.01)**2       #这个一般需要怎么调整呢？（好像是posterior 得到的）
+    #gpy_regr.Gaussian_noise.variance.fix()
+    gpy_regr.randomize()
+    gpy_regr.optimize_restarts(num_restarts=num_restarts, verbose=False, messages=False)
+
+    dict1 = {'ker-lengthscale':ker.lengthscale, 'ker-variance': ker.variance, 'Gaussian_noise': gpy_regr.Gaussian_noise}
+    save_logfile.send(('result', 'model_params:', dict1))
+    
+    y_pred_train, y_uncer_train= gpy_regr.predict(X_train)
+    y_pred_test, y_uncer_test = gpy_regr.predict(X_test)
+    dict2  = plt_true_vs_pred([y_train, y_test],
+                            [y_pred_train, y_pred_test],[y_uncer_train, y_uncer_test],
+                            ['Mat52-Train','Mat52-Test'],
+                            ['blue', 'darkorange'], criterion='correlation') 
+    save_logfile.send(('result', 'true VS pred:', dict2))
+
+    save_logfile.send(('model', '', gpy_regr))
 
 
 def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
@@ -25,11 +54,9 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
         ker = GPy.kern.Matern52(input_dim = len(X_train_fold[0]), ARD =True)     #Matern52有啥讲究吗？
         ker.lengthscale.constrain_bounded(1e-2, ker_lengthscale_upper)         #超参数？（好像是posterior 得到的）
         ker.variance.constrain_bounded(1e-2, ker_var_upper)
-
         gpy_regr = GPRegression(X_train_fold, y_train_fold.reshape(-1,1), ker)#
         #gpy_regr.Gaussian_noise.variance = (0.01)**2       #这个一般需要怎么调整呢？（好像是posterior 得到的）
         #gpy_regr.Gaussian_noise.variance.fix()
-
         gpy_regr.randomize()
         gpy_regr.optimize_restarts(num_restarts=num_restarts, verbose=False, messages=False)
 
