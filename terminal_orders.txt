@@ -1,3 +1,8 @@
 
-python -utt PCE-analysiss.py --id=debug --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=5 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=debug --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=5 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+
+
+python -utt PCE_analysis.py --id=diff_model-H --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+
+python -utt PCE_analysis.py --id=diff_model-A --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
 

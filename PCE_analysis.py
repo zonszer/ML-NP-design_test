@@ -6,6 +6,7 @@ import pandas as pd
 import datetime
 from sklearn.decomposition import PCA      
 import os
+import csv
 
 from utils.parser_ import get_args
 from utils.utils_ import *
@@ -101,9 +102,9 @@ def Main(args):
     # plot_desc_distribution(X, screen_dims=5)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
-        # cross_train_validation(X, y, args.Kfold, args.num_restarts, 
-        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
-        elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        cross_train_validation(X, y, args.Kfold, args.num_restarts,
+                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
 
     else:
         X_list, y_list = select_train_elems()
@@ -125,6 +126,7 @@ def save_logfile(save_name, model_dir, args):
             with open(pjoin(model_dir, save_name, 'result.txt'), 'a') as f:
                 print('{}:\n{}\n'.format(savename, str(value)), file=f)
                 f.write('\n\n')
+            write_dict_to_csv(value, pjoin(model_dir, save_name, savename+'.csv'))
         elif saveType == 'model':
             if savename != '':
                 paths = pjoin(model_dir, save_name, savename )    #

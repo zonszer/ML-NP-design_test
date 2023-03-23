@@ -7,7 +7,14 @@ import math, random
 import numpy as np
 import time
 from glob import glob
+import csv
 
+
+def write_dict_to_csv(data: dict, file_path):
+    with open(file_path, 'a', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
 
 def become_deterministic(seed=0):
     random.seed(seed)
