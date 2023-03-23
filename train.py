@@ -7,8 +7,7 @@ from utils.utils_ import *
 from plot import plot_CrossVal_avg
 
 
-
-def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper, ker_var_upper):
+def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
     # when use K fold not use train_test split: 
     X_train = X_norm; y_train = y[:, -1]
     # 创建一个用于得到不同训练集和测试集样本的索引的StratifiedKFold实例，折数为5
@@ -60,6 +59,8 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
                                                                 np.array(uncer_test).std()))
     
     # plot_CrossVal_avg(A, B ,C, D)
+    save_logfile.send('result', 'pearsonr:', dict1)
+
     return dict1
 
 

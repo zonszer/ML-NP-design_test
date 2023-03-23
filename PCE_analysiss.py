@@ -102,7 +102,7 @@ def Main(args):
     # plot_desc_distribution(X, screen_dims=5)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
-        log_values = cross_train_validation(X, y, args.Kfold, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
+        cross_train_validation(X, y, args.Kfold, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_logfile)
 
     else:
         X_list, y_list = select_train_elems()
@@ -110,13 +110,28 @@ def Main(args):
         log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         plot_CycleTrain(y_list_descr, X_train, X_test)
 
-    return log_values
 
-def save_logfile(save_name, model_dir, strkey, value):
+def save_logfile(save_name, model_dir, args):
+    '''send me 'saveType, savename, value' and a value, and I will save it to a file '''
     os.makedirs(pjoin(model_dir, save_name), exist_ok=True)
-    with open(pjoin(model_dir, save_name, 'setup.txt'), 'a') as f:
-        print('{}:\n{}\n'.format(strkey, str(value)), file=f)
-        f.write('\n\n')
+    while True:
+        saveType, savename, value = yield
+        if saveType == 'args':
+            with open(pjoin(model_dir, save_name, 'setup.txt'), 'a') as f:
+                print('{}:\n{}\n'.format(savename, str(value)), file=f)
+                f.write('\n\n')
+        elif saveType == 'result':
+            with open(pjoin(model_dir, save_name, 'result.txt'), 'a') as f:
+                print('{}:\n{}\n'.format(savename, str(value)), file=f)
+                f.write('\n\n')
+        elif saveType == 'model':
+            if savename != None:
+                paths = pjoin(model_dir, save_name, savename + '.pkl')    #
+            else:
+                paths = pjoin(model_dir, save_name, args.id + '.pkl')    #
+            value.save_model(paths)
+        else:
+            print('saveType must be args, result, or model')
 
 if __name__ == '__main__':
     current_time = datetime.datetime.now()
@@ -124,11 +139,14 @@ if __name__ == '__main__':
     with measure_time():
         args = get_args()
         become_deterministic(args.seed)
-        save_logfile(args.save_name, args.model_dir, 'args', args)
+        
+        save_logfile(args.save_name, args.model_dir, args)
+        next(save_logfile)
+        save_logfile.send('args', 'args:', args)
+
         printc.blue( '\nsave_name:', args.save_name, '\n')
 
-        log_values = Main(args)
-        save_logfile(args.save_name, args.model_dir, 'result', log_values)
+        Main(args)
 
 
     printc.green('--------------- Training finished ---------------')
