@@ -78,8 +78,8 @@ def PCA_dim_select(selected_method, n_dims):
         assert type(n_dims) == float
         selected_dim = n_dims
     elif selected_method == 'assigned':
-        assert type(n_dims) == int
-        selected_dim = n_dims
+        # assert type(n_dims) == int
+        selected_dim = int(n_dims)
     return selected_dim
 
 def select_train_elems():

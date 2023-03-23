@@ -66,8 +66,8 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
         y_pred_train, y_uncer_train = y_pred_train[:,-1], y_uncer_train[:,-1]
         y_pred_test, y_uncer_test = y_pred_test[:,-1], y_uncer_test[:,-1]
 
-        score_train = pearsonr(y_train_fold, y_pred_train) [0]; scores_train.append(score_train)
-        score_test = pearsonr(y_test_fold, y_pred_test) [0]; scores_test.append(score_test)
+        score_train = spearmanr(y_train_fold, y_pred_train) [0]; scores_train.append(score_train)
+        score_test = spearmanr(y_test_fold, y_pred_test) [0]; scores_test.append(score_test)
         # train_score = spearmanr(y_train_fold, y_pred_train) [0]
         uncer_train.append(y_uncer_train.mean())
         uncer_test.append(y_uncer_test.mean())
