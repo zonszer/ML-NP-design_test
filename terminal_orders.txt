@@ -106,3 +106,23 @@ python -utt PCE_analysis.py --id=diff_model-H3 --data_path=PCE1.xlsx --model=Hig
 
 python -utt PCE_analysis.py --id=diff_model-A3 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
 
+
+
+
+
+
+=======best model：======
+python -utt PCE_analysis.py --id=best-A10 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=10 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+
+python -utt PCE_analysis.py --id=best-A20 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+
+python -utt PCE_analysis.py --id=best-A30 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=30 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+
+python -utt PCE_analysis.py --id=best-A50 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=50 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+
+
+
+python -utt PCE_analysis.py --id=best-A10 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=10 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+
+
+

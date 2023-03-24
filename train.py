@@ -10,8 +10,7 @@ from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plo
 
 
 def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
-    X_train = X; y_train = y
-    X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size = 0.2)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
 
     ker = GPy.kern.Matern52(input_dim = X_train.shape[1], ARD =True)     #Matern52有啥讲究吗？
     ker.lengthscale.constrain_bounded(1e-2, ker_lengthscale_upper)         #超参数？（好像是posterior 得到的）
@@ -40,7 +39,7 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
     # when use K fold not use train_test split: 
     X_train = X_norm; y_train = y[:, -1]
     # 创建一个用于得到不同训练集和测试集样本的索引的StratifiedKFold实例，折数为5
-    strtfdKFold = KFold(n_splits=Kfold)
+    strtfdKFold = KFold(n_splits=Kfold, shuffle=True)
     #把特征和标签传递给StratifiedKFold实例
     kfold = strtfdKFold.split(X_train, y_train)
     #循环迭代，（K-1）份用于训练，1份用于验证，把每次模型的性能记录下来。
@@ -66,7 +65,7 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
         y_pred_train, y_uncer_train = y_pred_train[:,-1], y_uncer_train[:,-1]
         y_pred_test, y_uncer_test = y_pred_test[:,-1], y_uncer_test[:,-1]
 
-        score_train = spearmanr(y_train_fold, y_pred_train) [0]; scores_train.append(score_train)
+        score_train = spearmanr(y_train_fold, y_pred_train) [0]; scores_train.append(score_train)   #spearmanr or pearsonr
         score_test = spearmanr(y_test_fold, y_pred_test) [0]; scores_test.append(score_test)
         # train_score = spearmanr(y_train_fold, y_pred_train) [0]
         uncer_train.append(y_uncer_train.mean())
@@ -86,10 +85,9 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
                                                                 np.array(uncer_test).std()))
     
     # plot_CrossVal_avg(A, B ,C, D)
-    save_logfile.send(('result', 'pearsonr:', dict1))
+    save_logfile.send(('result', '', dict1))
     save_logfile.send(('model', '', gpy_regr))
     return dict1
-
 
 def cycle_train(train_data, test_data, num_restarts, ker_lengthscale_upper, ker_var_upper):
     y_list_descr = []                                   #此cell为重复之前的思路的总结版

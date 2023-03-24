@@ -47,6 +47,7 @@ def plot_CycleTrain(y_list_descr, X_train, X_test):
 def plt_true_vs_pred(y_true_list, y_pred_list, y_uncer_list, title_str_list, color_list,
                       only_value=False,
                       criterion='correlation'):
+    plt.rcParams.update({'font.family': 'Palatino Linotype'})   #'fontname':'Times New Roman'
     fig, axes = plt.subplots(1, 2, figsize=(5.5*2, 4.5))
     fs = 20
     scores, cal_methods = [], []
@@ -116,7 +117,7 @@ def plot_desc_distribution(X_pca, screen_dims=5):
     n_plots=screen_dims
     fs = 20
     # set the font name for a font family
-    plt.rcParams.update({'font.sans-serif':'Helvetica'})
+    plt.rcParams.update({'font.family': 'Palatino Linotype'})
     fig, axes = plt.subplots(1, n_plots, figsize=(5.5*n_plots, 4))
 
     for i in np.arange(n_plots):
@@ -127,7 +128,7 @@ def plot_desc_distribution(X_pca, screen_dims=5):
         axes[i].grid(True, linestyle='-.')
         axes[i].set_xlabel('Values', fontsize = fs)
         axes[i].set_ylabel('Counts', fontsize = fs)
-        axes[i].set_title('Raw X'+str(i+1), fontsize = fs)
+        axes[i].set_title('PCA X'+str(i+1), fontsize = fs)
     # set the spacing between subplots
     plt.subplots_adjust(left=0.1,
                         bottom=0.1, 

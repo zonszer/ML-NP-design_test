@@ -98,13 +98,15 @@ def Main(args):
 
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
+    # plot_Xy_relation(X_compo, y_pmax)
     X, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim)
     # plot_desc_distribution(X, screen_dims=5)
+    # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
-        cross_train_validation(X, y, args.Kfold, args.num_restarts,
-                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
-        # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # cross_train_validation(X, y, args.Kfold, args.num_restarts,
+        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
 
     else:
         X_list, y_list = select_train_elems()
@@ -123,15 +125,15 @@ def save_logfile(save_name, model_dir, args):
                 print('{}:\n{}\n'.format(savename, str(value)), file=f)
                 f.write('\n\n')
         elif saveType == 'result':
+            if savename == '': savename = args.id
             with open(pjoin(model_dir, save_name, 'result.txt'), 'a') as f:
                 print('{}:\n{}\n'.format(savename, str(value)), file=f)
                 f.write('\n\n')
             write_dict_to_csv(value, pjoin(model_dir, save_name, savename+'.csv'))
+            write_dict_to_csv(value, pjoin('tempdata', savename+'.csv'))
         elif saveType == 'model':
-            if savename != '':
-                paths = pjoin(model_dir, save_name, savename )    #
-            else:
-                paths = pjoin(model_dir, save_name, args.id)    #
+            if savename == '': savename = args.id
+            paths = pjoin(model_dir, save_name, savename)    #
             value.save_model(paths)
         else:
             print('saveType must be args, result, or model')
