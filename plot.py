@@ -107,11 +107,26 @@ def plt_true_vs_pred(y_true_list, y_pred_list, y_uncer_list, title_str_list, col
     assert len(cal_methods) == len(scores)
     return transfer_lst2dict(cal_methods, scores)
 
-def plot_Xy_relation(X, y):
+def plot_Xy_relation(X, y, col_names):
     mi = mutual_info_regression(X, y)   #[616, 132] VS [616, 1]
     mi /= np.max(mi)                    #还是norm3
-    plt.bar(np.arange(len(mi)), mi)     #mi 为132项， 画图是为了看mat desc中哪项对于Pmax的关联性最大
+    # ax.hist(mi, orientation='horizontal', color='blue')        # hist is distribution figure, while bar is 柱形图
+    # plt.bar(np.arange(len(mi)), mi)     #mi 为132项， 画图是为了看mat desc中哪项对于Pmax的关联性最大
+    idx_sort = np.argsort(mi)
+    mi_sort = mi[idx_sort][::-1]
+    idx_sort = idx_sort[::-1]                     #reverse sort
+    filtered_names = col_names[idx_sort][mi_sort > 0.6]
+    y_lenlist = np.arange(len(filtered_names))
+    fig, ax = plt.subplots(figsize=(14, 7))
+    ax.barh(y_lenlist, mi_sort[:len(y_lenlist)], align='center')
+    # ax.set_yticks(y_len, labels=filtered_names)
+    ax.set_yticks(y_lenlist)
+    ax.set_yticklabels(filtered_names)
+    ax.invert_yaxis()  # labels read top-to-bottom
+    ax.set_xlabel('MI correlation')
+    # ax.set_title('')
     plt.show()
+    pass
 
 def plot_desc_distribution(X_pca, screen_dims=5):
     n_plots=screen_dims

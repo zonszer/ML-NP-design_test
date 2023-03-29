@@ -16,23 +16,39 @@ from sklearn.model_selection import train_test_split
 
 def Preprocessing(path, col_labels):
     df = get_data(path, col_labels)
-    df = add_formula_col(df)
+    df = add_formula_col_OER(df)
     df_cleaned = sort_clean_df(df)
     df = add_comp_col(df_cleaned)
     return df
 
 def get_data(path, col_labels):
     '''read data'''
-    df_pec_data = pd.read_excel(path, header = 1)
+    df_pec_data = pd.read_excel(path, header = 0)
+    df_pec_data['material'] = df_pec_data['material'].ffill()
     # df_pec_data = df_pec_data.sort_values(['Sample'], ignore_index = True)
     df_pec_data.columns = eval(col_labels)
     df_pec_data.dropna(axis=0, how='all', inplace=True)
     df_pec_data = df_pec_data.reset_index(drop=True)
     return df_pec_data
 
-def add_formula_col(daf):
+def add_formula_col_PCE(daf):
     daf['formula'] = daf['Element']                           #为pd数据格式加了一列formula数据
     return daf
+
+def add_formula_col_OER(daf):
+    formula_list = []
+    spt_proportions = [i.split(':') for i in daf['Elemental proportions'][1:]]          #remove the first row
+    spt_materials = [i.split(':') for i in daf['material'][1:]]
+    for i in range(len(spt_proportions)):
+        formula = ''
+        for j in range(len(spt_proportions[i])):
+            spt_proportions[i][j] = str(round(int(spt_proportions[i][j])*0.1, 2))            
+            formula += spt_materials[i][j] + spt_proportions[i][j]
+        formula_list.append(formula)
+    daf['formula'] = [daf['material'][0]] + formula_list   #为pd数据格式加了一列formula数据
+
+    return daf
+
 
 def sort_clean_df(daf):
     # df_pec_data_cleaned = df_pec_data_sorted        #不去除同组成的data
@@ -98,7 +114,7 @@ def Main(args):
 
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
-    # plot_Xy_relation(X_compo, y_pmax)
+    plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim)
     # plot_desc_distribution(X, screen_dims=5)
     # plot_desc_distribution(X, screen_dims=8)

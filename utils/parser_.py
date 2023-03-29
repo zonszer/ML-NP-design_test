@@ -7,11 +7,13 @@ parser = argparse.ArgumentParser(description='GP')
 parser.add_argument('--model_dir', default='Models/', help='folder to output model checkpoints')
 # col_labels = ['Element', 'Highest Ratio over Control',
 #               'Average Ratio over Control', 'Concentration']
-parser.add_argument('--id', default='XXXX', help='inbatch, epoch')
-parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
-                                             'Average Ratio over Control', 'Concentration']", help='   ')       #下午可以改为非++的情况看看loss的计算过程
+parser.add_argument('--id', default='XXXX', help='name')
+parser.add_argument('--col_labels', default= "['material', 'Elemental proportions', \
+                                            'Mass activity (A/mg) at 1.53V', 'slope relative to Ru']", help='   ')   
+# parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
+#                                              'Average Ratio over Control', 'Concentration']", help='   ')    
 parser.add_argument('--data_path', default='OER-Summary-LZ.xlsx', help='  ')
-parser.add_argument('--model', '--y_col_name', default='Average Ratio over Control', help='Highest-Ratio-over-Control  OR  Average-Ratio-over-Control')
+parser.add_argument('--model', '--y_col_name', default='Mass activity (A/mg) at 1.53V', help='Highest-Ratio-over-Control  OR  Average-Ratio-over-Control')
 parser.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
 # parser.add_argument('--masks_dir', '--masks', default=None , help='')       #'Datasets/AMOS-views/AMOS-masks'
 # parser.add_argument('--weight_function', '--wf', default='Hessian',
@@ -19,7 +21,7 @@ parser.add_argument('--PCA_dim_select_method', default='auto', help='Other optio
 # int
 parser.add_argument('--num_restarts', type=int, default=5, help='number of epochs to train')
 parser.add_argument('--Kfold', type=int, default=5, help='number of hard neg in loss')
-parser.add_argument('--PCA_dim', type=float, default=0, help='input: float or int. n compoents of PCA when input')
+parser.add_argument('--PCA_dim', type=float, default=0.9999, help='input: float or int. n compoents of PCA when input')
 parser.add_argument('--cycle_num', type=float, default=0, help='cycle_num')
 # parser.add_argument('--patch_sets', '--psets', '--tracks', type=int, default=30000, help='How many patch sets to generate. Works approximately.')
 # parser.add_argument('--bsNum', type=int, default=1400, help='how many batch will ues(only work in FineTune)')
@@ -66,6 +68,7 @@ def get_args(ipynb=False):
     txt += ['seed:' + str(args.seed)]
     # txt += ['Data_path:' + args.data_path]
     model_name = '_'.join([str(c) for c in txt])
+    model_name = model_name.replace(':', '=')
     # if args.Kfold: txt += ['Kfold:' + str(args.Kfold)]
     # if args.ker_lengthscale_upper: txt += ['ker_lengthscale_upper:' + str(args.ker_lengthscale_upper)]
     # if args.ker_var_upper: txt += ['ker_var_upper:' + str(args.ker_var_upper)]
