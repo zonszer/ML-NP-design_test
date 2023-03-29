@@ -10,7 +10,7 @@ parser.add_argument('--model_dir', default='Models/', help='folder to output mod
 parser.add_argument('--id', default='XXXX', help='inbatch, epoch')
 parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
                                              'Average Ratio over Control', 'Concentration']", help='   ')       #下午可以改为非++的情况看看loss的计算过程
-parser.add_argument('--data_path', default='PCE1.xlsx', help='  ')
+parser.add_argument('--data_path', default='OER-Summary-LZ.xlsx', help='  ')
 parser.add_argument('--model', '--y_col_name', default='Average Ratio over Control', help='Highest-Ratio-over-Control  OR  Average-Ratio-over-Control')
 parser.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
 # parser.add_argument('--masks_dir', '--masks', default=None , help='')       #'Datasets/AMOS-views/AMOS-masks'
