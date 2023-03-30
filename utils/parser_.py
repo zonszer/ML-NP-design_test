@@ -12,7 +12,7 @@ parser.add_argument('--col_labels', default= "['material', 'Elemental proportion
                                             'Mass activity at 1.53V', 'slope relative to Ru']", help='   ')
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')    
-parser.add_argument('--data_path', default='OER-Summary-LZ.xlsx', help='  ')
+parser.add_argument('--data_path', default='data/OER-Summary-LZ.xlsx', help='  ')
 parser.add_argument('--model', '--y_col_name', default='Mass activity at 1.53V', help='Highest-Ratio-over-Control  OR  Average-Ratio-over-Control')
 parser.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
 # parser.add_argument('--masks_dir', '--masks', default=None , help='')       #'Datasets/AMOS-views/AMOS-masks'

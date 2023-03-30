@@ -11,6 +11,7 @@ __pycache__/
 *.so
 .vscode/
 Models/
+data/
 
 # Distribution / packaging
 .Python
