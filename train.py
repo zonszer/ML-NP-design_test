@@ -71,8 +71,6 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
         uncer_train.append(y_uncer_train.mean())
         uncer_test.append(y_uncer_test.mean())
 
-    # plot_CrossVal_avg(uncer_train, uncer_test)
-    # plot_CrossVal_avg(scores_train, scores_test)
     dict1 = {'score_train': np.array(scores_train).mean(), 'score_train_std' :np.array(scores_train).std(),
              'score_test': np.array(scores_test).mean(), 'score_test_std': np.array(scores_test).std()}
     printc.blue('\nTRAIN: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_train).mean(),

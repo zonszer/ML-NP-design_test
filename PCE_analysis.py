@@ -14,9 +14,14 @@ from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plo
 from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from sklearn.model_selection import train_test_split
 
-def Preprocessing(path, col_labels):
+def Preprocessing(path, col_labels, data_path):
     df = get_data(path, col_labels)
-    df = add_formula_col_OER(df)
+    if 'OER' in data_path:
+        df = add_formula_col_OER(df)
+    elif 'PCE' in data_path:
+        df = add_formula_col_PCE(df)
+    else:
+        raise ValueError('data_path should contain PCE or OER')
     df_cleaned = sort_clean_df(df)
     df = add_comp_col(df_cleaned)
     return df
@@ -105,7 +110,7 @@ def select_train_elems():
 
 def Main(args):
     # 1. Import Data and Preprocessing 
-    df = Preprocessing(args.data_path, args.col_labels)
+    df = Preprocessing(args.data_path, args.col_labels, args.data_path)
 
     # 2 .Build composition descriptors (from `matminer`)
     descs = Add_extract_descriptors(df, args)
@@ -114,7 +119,7 @@ def Main(args):
 
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
-    plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
+    # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim)
     # plot_desc_distribution(X, screen_dims=5)
     # plot_desc_distribution(X, screen_dims=8)
@@ -123,6 +128,10 @@ def Main(args):
         # cross_train_validation(X, y, args.Kfold, args.num_restarts,
         #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+    elif 'OER' in args.data_path:
+        cross_train_validation(X, y, args.Kfold, args.num_restarts,
+                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
 
     else:
         X_list, y_list = select_train_elems()
