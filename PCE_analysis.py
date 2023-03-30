@@ -121,6 +121,7 @@ def Main(args):
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim)
+    printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=5)
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model

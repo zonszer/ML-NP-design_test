@@ -75,11 +75,11 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
              'score_test': np.array(scores_test).mean(), 'score_test_std': np.array(scores_test).std()}
     printc.blue('\nTRAIN: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_train).mean(),
                                                                 np.array(scores_train).std()))
-    printc.yellow('\nTEST: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_test).mean(),
+    printc.yellow('TEST: Cross-Validation score: %.3f +/- %.3f' %(np.array(scores_test).mean(),
                                                                 np.array(scores_test).std()))
-    printc.blue('\nTRAIN: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_train).mean(),
+    printc.blue('TRAIN: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_train).mean(),
                                                                 np.array(uncer_train).std()))
-    printc.yellow('\nTEST: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_test).mean(),
+    printc.yellow('TEST: Cross-Validation uncertainty: %.3f +/- %.3f' %(np.array(uncer_test).mean(),
                                                                 np.array(uncer_test).std()))
     
     # plot_CrossVal_avg(A, B ,C, D)
