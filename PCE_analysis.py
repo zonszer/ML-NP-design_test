@@ -8,11 +8,20 @@ from sklearn.decomposition import PCA
 import os
 import csv
 
+import torch
+from ax.service.ax_client import AxClient
+from ax.service.utils.instantiation import ObjectiveProperties
+
+
+
 from utils.parser_ import get_args
 from utils.utils_ import *
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
 from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from sklearn.model_selection import train_test_split
+
+
+
 
 def Preprocessing(path, col_labels, data_path):
     df = get_data(path, col_labels)
@@ -169,6 +178,12 @@ if __name__ == '__main__':
     current_time = current_time.strftime("%m%d-%H_%M_%S")
     with measure_time():
         args = get_args()
+        tkwargs = {
+            "dtype": torch.double,
+            "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        }
+
+        # SMOKE_TEST = os.environ.get("SMOKE_TEST")
         become_deterministic(args.seed)
         
         save_file_instance = save_logfile(args.save_name, args.model_dir, args)

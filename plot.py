@@ -6,6 +6,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.feature_selection import RFE
 from sklearn.feature_selection import mutual_info_regression
+from ax.utils.notebook.plotting import render, init_notebook_plotting
+from ax.plot.pareto_utils import compute_posterior_pareto_frontier
+from ax.plot.pareto_frontier import plot_pareto_frontier
+
+
+def plot_frontier():
+    init_notebook_plotting()
+
+    return None
 
 def y_inverse_transform(y_list):
     #y_orignal = np.exp(std_scalery.inverse_transform(y_list.reshape(-1,1)))
