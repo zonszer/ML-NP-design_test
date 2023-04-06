@@ -13,7 +13,7 @@ parser.add_argument('--col_labels', default= "['material', 'Elemental proportion
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')    
 parser.add_argument('--data_path', default='data/OER-Summary-LZ.xlsx', help='  ')
-parser.add_argument('--model', '--y_col_name', default='Mass activity at 1.53V', 
+parser.add_argument('--model', '--y_col_name', default='Mass-activity-at-1.53V+slope-relative-to-Ru', #Mass activity at 1.53V
                     help='OPT1 for PCE: Highest-Ratio-over-Control  OR  Average-Ratio-over-Control /n \
                           OPT2.1 for OER: {Mass-activity-at-1.53V} /n \
                           OPT2.2 for OER: {slope-relative-to-Ru} /n \

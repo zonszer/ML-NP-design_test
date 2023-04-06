@@ -8,7 +8,7 @@ from sklearn.decomposition import PCA
 import os
 import csv
 
-from ax import *
+# from ax import *
 from ax.core.metric import Metric
 from ax.metrics.noisy_function import NoisyFunctionMetric
 from ax.service.utils.report_utils import exp_to_df
@@ -23,8 +23,6 @@ from utils.utils_ import *
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
 from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from sklearn.model_selection import train_test_split
-
-
 
 
 def Preprocessing(path, col_labels, data_path):

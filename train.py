@@ -8,10 +8,10 @@ from plot import plot_CrossVal_avg
 from sklearn.model_selection import train_test_split
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
 
-def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile)
-    
-
-    return None
+# def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile)
+#
+#
+#     return None
 
 
 def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
