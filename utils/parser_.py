@@ -13,7 +13,11 @@ parser.add_argument('--col_labels', default= "['material', 'Elemental proportion
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')    
 parser.add_argument('--data_path', default='data/OER-Summary-LZ.xlsx', help='  ')
-parser.add_argument('--model', '--y_col_name', default='Mass activity at 1.53V', help='Highest-Ratio-over-Control  OR  Average-Ratio-over-Control')
+parser.add_argument('--model', '--y_col_name', default='Mass activity at 1.53V', 
+                    help='OPT1 for PCE: Highest-Ratio-over-Control  OR  Average-Ratio-over-Control /n \
+                          OPT2.1 for OER: {Mass-activity-at-1.53V} /n \
+                          OPT2.2 for OER: {slope-relative-to-Ru} /n \
+                          OPT2.3 for OER: {Mass-activity-at-1.53V+slope-relative-to-Ru}  /n')
 parser.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
 # parser.add_argument('--masks_dir', '--masks', default=None , help='')       #'Datasets/AMOS-views/AMOS-masks'
 # parser.add_argument('--weight_function', '--wf', default='Hessian',
@@ -44,6 +48,13 @@ parser.add_argument('--use_concentration', default=False, action='store_true', h
 # parser.add_argument('--addAP', default=False, action='store_true', help='add AP lsos to standard loss')
 # parser.add_argument('--AP_loss', default=False, action='store_true')
 
+def clean_args(args) -> list:
+    # for args.model:
+    args.model = args.model.replace("-", " ")
+    args.model = args.model.split("+")
+    
+    return args
+
 def get_args(ipynb=False):
     if ipynb: # for jupyter so that default args are passed
         args = parser.parse_args([])
@@ -61,22 +72,24 @@ def get_args(ipynb=False):
     if args.cycle_num: txt += ['cycle_num:' + str(args.cycle_num)]
     txt += ['bs:' + str(args.batch_size)]
     txt += ['seed:' + str(args.seed)]
-    args.model = args.model.replace("-", " ")
     txt += ['model:' + str(args.model)]
     txt += ['PCA_dim:' + str(args.PCA_dim)]
     txt += ['PCA_dim_select_method:' + args.PCA_dim_select_method]
     txt += ['seed:' + str(args.seed)]
     # txt += ['Data_path:' + args.data_path]
     model_name = '_'.join([str(c) for c in txt])
-    model_name = model_name.replace(':', '=')
     # if args.Kfold: txt += ['Kfold:' + str(args.Kfold)]
     # if args.ker_lengthscale_upper: txt += ['ker_lengthscale_upper:' + str(args.ker_lengthscale_upper)]
     # if args.ker_var_upper: txt += ['ker_var_upper:' + str(args.ker_var_upper)]
     # if args.use_concentration: txt += ['UseConcentrationCol ']
+ 
+    ## In windows recommend to replace ':' with '='
+    model_name = model_name.replace(':', '=')
     args.save_name = model_name
 
     if model_name in [getbase(c) for c in glob(pjoin(args.model_dir, '*'))]:
         printc.red('WARNING: MODEL',model_name,'\nALREADY EXISTS')
-    
+    args = clean_args(args)
+
     return args
 

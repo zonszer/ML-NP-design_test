@@ -8,10 +8,14 @@ from sklearn.decomposition import PCA
 import os
 import csv
 
+from ax import *
+from ax.core.metric import Metric
+from ax.metrics.noisy_function import NoisyFunctionMetric
+from ax.service.utils.report_utils import exp_to_df
+from ax.runners.synthetic import SyntheticRunner
 import torch
-from ax.service.ax_client import AxClient
-from ax.service.utils.instantiation import ObjectiveProperties
-
+# from ax.service.ax_client import AxClient
+# from ax.service.utils.instantiation import ObjectiveProperties
 
 
 from utils.parser_ import get_args
@@ -74,12 +78,12 @@ def add_comp_col(daf):
     df_pec = StrToComposition().featurize_dataframe(daf, "formula") #似乎是按前几列的colum label整理target col的数据，输出含有前几列的label，并作为新的col添加到pd中
     return df_pec
 
-def Add_extract_descriptors(df_pec, args):
+def Add_extract_descriptors(df_pec, use_concentration):
     ep_feat = ElementProperty.from_preset(preset_name="magpie")
     df_pec_magpie = ep_feat.featurize_dataframe(df_pec, col_id="composition")  #这两行是matminer的固定操作，用于加入描述符col
     _ = df_pec_magpie.shape[1] - 132           # changed param1 
 
-    if args.use_concentration:
+    if use_concentration:
         #在df的列名中判断是否有Concentration这一列
         assert 'Concentration' in df_pec_magpie.columns
         desc = pd.concat([ df_pec_magpie['Concentration'], df_pec_magpie.iloc[:, _:] ], axis=1)
@@ -94,7 +98,7 @@ def norm_PCA(X_compo, y_pmax, selected_method, n_dims):
 
     X = np.array(X_compo)
     #X_log = np.log(X.astype('float'))   
-    y = np.array(y_pmax.reshape(-1,1))   
+    y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))   
     # plot_Xy_relation(X, y)
 
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))                  #使用：则会被降到5维
@@ -122,7 +126,7 @@ def Main(args):
     df = Preprocessing(args.data_path, args.col_labels, args.data_path)
 
     # 2 .Build composition descriptors (from `matminer`)
-    descs = Add_extract_descriptors(df, args)
+    descs = Add_extract_descriptors(df, args.use_concentration)
     X_compo = descs.values              # all descriptors
     y_pmax = df[args.model].values      #P（Eff max）
 
@@ -139,9 +143,18 @@ def Main(args):
         #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
     elif 'OER' in args.data_path:
-        cross_train_validation(X, y, args.Kfold, args.num_restarts,
-                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # 1:
+        # cross_train_validation(X, y, args.Kfold, args.num_restarts,
+        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # 2：
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # 3:
+        x1 = RangeParameter(name="x1", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
+        x2 = RangeParameter(name="x2", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
+
+        search_space = SearchSpace(
+            parameters=[x1, x2],
+        )
 
     else:
         X_list, y_list = select_train_elems()
@@ -150,7 +163,7 @@ def Main(args):
         plot_CycleTrain(y_list_descr, X_train, X_test)
 
 
-def save_logfile(save_name, model_dir, args):
+def save_logfile(save_name, model_dir, args):       #TODO: rewrite it to a class
     '''send me 'saveType, savename, value' and a value, and I will save it to a file '''
     os.makedirs(pjoin(model_dir, save_name), exist_ok=True)
     while True:

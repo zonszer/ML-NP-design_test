@@ -6,6 +6,13 @@ import numpy as np
 from utils.utils_ import *
 from plot import plot_CrossVal_avg
 
+def evaluate(parameters):
+    evaluation = branin_currin(torch.tensor([parameters.get("x1"), parameters.get("x2")]))
+    # In our case, standard error is 0, since we are computing a synthetic function.
+    # Set standard error to None if the noise level is unknown.
+    return {"a": (evaluation[0].item(), 0.0), "b": (evaluation[1].item(), 0.0)}
+
+
 def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper, ker_var_upper):
     # when use K fold not use train_test split: 
     X_train = X_norm; y_train = y[:, -1]
