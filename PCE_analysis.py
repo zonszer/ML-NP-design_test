@@ -124,19 +124,23 @@ def Define_experiment_conf(X_cols_names, X, y_cols_names, y):
         x1 = RangeParameter(name=X_cols_names[i], lower=0, upper=1, parameter_type=ParameterType.FLOAT)
         list_ofbound.append(x1)
     search_space = SearchSpace(parameters=list_ofbound)
+
     class MetricA(NoisyFunctionMetric):
         def f(self, x: np.ndarray) -> float:
-            return float(branin_currin(torch.tensor(x))[0])
+                        self.fetch_trial_data()
+
+            return float(y[0])
     class MetricB(NoisyFunctionMetric):
         def f(self, x: np.ndarray) -> float:
             return float(branin_currin(torch.tensor(x))[1])
+    
     if 'Mass' in y_cols[0] and 'slope' in y_cols[1]:
         flag = False
-        ref_point = [-20., -10]
+        ref_point = [0., 0.]
     else:
         raise ValueError('Wrong y_cols structure for OER dataset')
-    metric_a = MetricA(name =y_cols[0], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=flag)
-    metric_b = MetricB(name =y_cols[1], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=not flag)
+    metric_a = MetricA(name =y_cols_names[0], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=flag)
+    metric_b = MetricB(name =y_cols_names[1], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=not flag)
     mo = MultiObjective(
         objectives=[Objective(metric=metric_a), Objective(metric=metric_b)],
     )
@@ -161,7 +165,6 @@ def Main(args):
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim)
     printc.blue('PCA dimensions:', X.shape[1])
-    # plot_desc_distribution(X, screen_dims=5)
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
@@ -175,13 +178,15 @@ def Main(args):
         # 2：
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # 3:
-        Define_experiment_conf(args.model)
+        # X_list, y_list = select_train_elems()     #first try without split elem data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
+        Define_experiment_conf(X_cols_names = descs.columns.values, X=X_train, y_cols_names=args.model, y=y_train)
 
-    else:
-        X_list, y_list = select_train_elems()
-        X_train, X_test, y_train, y_test = train_test_split(X_list, y_list, test_size = 0.2)
         log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         plot_CycleTrain(y_list_descr, X_train, X_test)
+
+    else:
+        raise ValueError('Unknow dataset')
 
 
 def save_logfile(save_name, model_dir, args):       #TODO: rewrite it to a class
