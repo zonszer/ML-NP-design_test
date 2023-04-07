@@ -8,10 +8,49 @@ from plot import plot_CrossVal_avg
 from sklearn.model_selection import train_test_split
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
 
-# def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile)
-#
-#
-#     return None
+def Define_experiment_conf(X, y):
+    # use defaut config: range(0, 1)
+    list_ofbound = []
+    for i in range(X.shape[1]):
+        x1 = RangeParameter(name=X_cols_names[i], lower=0, upper=1, parameter_type=ParameterType.FLOAT)
+        list_ofbound.append(x1)
+    search_space = SearchSpace(parameters=list_ofbound)
+
+    class MetricA(NoisyFunctionMetric):
+        def f(self, x: np.ndarray) -> float:
+            self.fetch_trial_data()
+            return float(y[0])
+    class MetricB(NoisyFunctionMetric):
+        def f(self, x: np.ndarray) -> float:
+            return float(branin_currin(torch.tensor(x))[1])
+    
+    if 'Mass' in y_cols[0] and 'slope' in y_cols[1]:
+        flag = False
+        ref_point = [0., 0.]
+    else:
+        raise ValueError('Wrong y_cols structure for OER dataset')
+    metric_a = MetricA(name =y_cols_names[0], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=flag)
+    metric_b = MetricB(name =y_cols_names[1], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=not flag)
+    mo = MultiObjective(
+        objectives=[Objective(metric=metric_a), Objective(metric=metric_b)],
+    )
+    objective_thresholds = [
+        ObjectiveThreshold(metric=metric, bound=val, relative=False)
+        for metric, val in zip(mo.metrics, ref_point)
+    ]
+    return search_space
+
+def generate_initial_data(n=dim):
+    # generate training data
+    train_x = torch.FloatTensor(X_0)
+    train_obj = torch.FloatTensor(Y_0)
+    return train_x, train_obj
+
+def initialize_model(train_x, train_obj):
+    # define models for objective and constraint
+    model = SingleTaskGP(train_x, train_obj, outcome_transform=Standardize(m=train_obj.shape[-1]))
+    mll = ExactMarginalLogLikelihood(model.likelihood, model)
+    return mll, model
 
 
 def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):

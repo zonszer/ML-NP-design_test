@@ -21,7 +21,8 @@ import torch
 from utils.parser_ import get_args
 from utils.utils_ import *
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
-from train import cross_train_validation, cycle_train, elem1_train_and_plot
+# from train import cross_train_validation, cycle_train, elem1_train_and_plot
+from train import *
 from sklearn.model_selection import train_test_split
 
 
@@ -116,39 +117,7 @@ def PCA_dim_select(selected_method, n_dims):
 
 def select_train_elems():
     return X_inp_list[0][elem1_indx_random], y_outp_list[0][elem1_indx_random] #只对num_elements==3的数据进行训练 #(并且只用其中随机抽取的20个元素)
-                                                   
-def Define_experiment_conf(X_cols_names, X, y_cols_names, y):
-    # use defaut config: range(0, 1)
-    list_ofbound = []
-    for i in range(X.shape[1]):
-        x1 = RangeParameter(name=X_cols_names[i], lower=0, upper=1, parameter_type=ParameterType.FLOAT)
-        list_ofbound.append(x1)
-    search_space = SearchSpace(parameters=list_ofbound)
-
-    class MetricA(NoisyFunctionMetric):
-        def f(self, x: np.ndarray) -> float:
-                        self.fetch_trial_data()
-
-            return float(y[0])
-    class MetricB(NoisyFunctionMetric):
-        def f(self, x: np.ndarray) -> float:
-            return float(branin_currin(torch.tensor(x))[1])
-    
-    if 'Mass' in y_cols[0] and 'slope' in y_cols[1]:
-        flag = False
-        ref_point = [0., 0.]
-    else:
-        raise ValueError('Wrong y_cols structure for OER dataset')
-    metric_a = MetricA(name =y_cols_names[0], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=flag)
-    metric_b = MetricB(name =y_cols_names[1], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=not flag)
-    mo = MultiObjective(
-        objectives=[Objective(metric=metric_a), Objective(metric=metric_b)],
-    )
-    objective_thresholds = [
-        ObjectiveThreshold(metric=metric, bound=val, relative=False)
-        for metric, val in zip(mo.metrics, ref_point)
-    ]
-    return search_space
+                                                
 
 
 def Main(args):
@@ -180,7 +149,7 @@ def Main(args):
         # 3:
         # X_list, y_list = select_train_elems()     #first try without split elem data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
-        Define_experiment_conf(X_cols_names = descs.columns.values, X=X_train, y_cols_names=args.model, y=y_train)
+        Define_experiment_conf(  X=X_train,  y=y_train)
 
         log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         plot_CycleTrain(y_list_descr, X_train, X_test)
