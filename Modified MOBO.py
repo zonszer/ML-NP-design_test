@@ -148,7 +148,7 @@ for trial in range(1, N_TRIALS + 1):
         # update training points
         train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
         train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj_qehvi])
-        print("New Samples--------------------------------------------")
+        print("New Samples--------------------------------------------")        #nsga-2
         print(train_x_qehvi[-BATCH_SIZE:])
 
 

@@ -7,8 +7,23 @@ from utils.utils_ import *
 from plot import plot_CrossVal_avg
 from sklearn.model_selection import train_test_split
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
+import torch
+
+def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
+    bounds = np.zeros((2, dim_X))
+    for i in range(dim_X):
+        bounds[0][i] = min(X[:, i])     #min of bound
+        bounds[1][i] = max(X[:, i])     #max of bound
+
+    bounds=[[0., 0., 0., 0., 0., 0.],
+            [1., 1., 1., 1., 1., 1.]]       #.shape=[2,6]
+    
 
 def Define_experiment_conf(X, y):
+    dim = len(X[1])
+    num_objectives = len(y[1])
+    generate_bounds(X, y, dim, num_objectives)
+
     # use defaut config: range(0, 1)
     list_ofbound = []
     for i in range(X.shape[1]):
@@ -29,11 +44,10 @@ def Define_experiment_conf(X, y):
         ref_point = [0., 0.]
     else:
         raise ValueError('Wrong y_cols structure for OER dataset')
-    metric_a = MetricA(name =y_cols_names[0], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=flag)
-    metric_b = MetricB(name =y_cols_names[1], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=not flag)
-    mo = MultiObjective(
-        objectives=[Objective(metric=metric_a), Objective(metric=metric_b)],
-    )
+
+    ref_point_ = torch.FloatTensor(ref_point)
+    bounds = torch.FloatTensor(bounds)
+
     objective_thresholds = [
         ObjectiveThreshold(metric=metric, bound=val, relative=False)
         for metric, val in zip(mo.metrics, ref_point)
