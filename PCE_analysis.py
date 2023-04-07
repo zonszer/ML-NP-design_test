@@ -117,7 +117,24 @@ def PCA_dim_select(selected_method, n_dims):
 def select_train_elems():
     return X_inp_list[0][elem1_indx_random], y_outp_list[0][elem1_indx_random] #只对num_elements==3的数据进行训练 #(并且只用其中随机抽取的20个元素)
                                                    
+def  Define_experiment_conf():
+    # use defaut config: range(0, 1)
+    x1 = RangeParameter(name="x1", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
+    x2 = RangeParameter(name="x2", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
+    search_space = SearchSpace(
+        parameters=[x1, x2],
+    )
+    class MetricA(NoisyFunctionMetric):
+        def f(self, x: np.ndarray) -> float:
+            return float(branin_currin(torch.tensor(x))[0])
+    class MetricB(NoisyFunctionMetric):
+        def f(self, x: np.ndarray) -> float:
+            return float(branin_currin(torch.tensor(x))[1])
 
+    metric_a = MetricA("a", ["x1", "x2"], noise_sd=0.0, lower_is_better=False)
+    metric_b = MetricB("b", ["x1", "x2"], noise_sd=0.0, lower_is_better=False)
+
+    return search_space
 
 def Main(args):
     # 1. Import Data and Preprocessing 
@@ -147,12 +164,7 @@ def Main(args):
         # 2：
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # 3:
-        x1 = RangeParameter(name="x1", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
-        x2 = RangeParameter(name="x2", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
-
-        search_space = SearchSpace(
-            parameters=[x1, x2],
-        )
+        Define_experiment_conf()
 
     else:
         X_list, y_list = select_train_elems()
