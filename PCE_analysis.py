@@ -117,24 +117,35 @@ def PCA_dim_select(selected_method, n_dims):
 def select_train_elems():
     return X_inp_list[0][elem1_indx_random], y_outp_list[0][elem1_indx_random] #只对num_elements==3的数据进行训练 #(并且只用其中随机抽取的20个元素)
                                                    
-def  Define_experiment_conf():
+def Define_experiment_conf(X_cols_names, X, y_cols_names, y):
     # use defaut config: range(0, 1)
-    x1 = RangeParameter(name="x1", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
-    x2 = RangeParameter(name="x2", lower=0, upper=1, parameter_type=ParameterType.FLOAT)
-    search_space = SearchSpace(
-        parameters=[x1, x2],
-    )
+    list_ofbound = []
+    for i in range(X.shape[1]):
+        x1 = RangeParameter(name=X_cols_names[i], lower=0, upper=1, parameter_type=ParameterType.FLOAT)
+        list_ofbound.append(x1)
+    search_space = SearchSpace(parameters=list_ofbound)
     class MetricA(NoisyFunctionMetric):
         def f(self, x: np.ndarray) -> float:
             return float(branin_currin(torch.tensor(x))[0])
     class MetricB(NoisyFunctionMetric):
         def f(self, x: np.ndarray) -> float:
             return float(branin_currin(torch.tensor(x))[1])
-
-    metric_a = MetricA("a", ["x1", "x2"], noise_sd=0.0, lower_is_better=False)
-    metric_b = MetricB("b", ["x1", "x2"], noise_sd=0.0, lower_is_better=False)
-
+    if 'Mass' in y_cols[0] and 'slope' in y_cols[1]:
+        flag = False
+        ref_point = [-20., -10]
+    else:
+        raise ValueError('Wrong y_cols structure for OER dataset')
+    metric_a = MetricA(name =y_cols[0], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=flag)
+    metric_b = MetricB(name =y_cols[1], param_names =["y1", "y2"], noise_sd=0.0, lower_is_better=not flag)
+    mo = MultiObjective(
+        objectives=[Objective(metric=metric_a), Objective(metric=metric_b)],
+    )
+    objective_thresholds = [
+        ObjectiveThreshold(metric=metric, bound=val, relative=False)
+        for metric, val in zip(mo.metrics, ref_point)
+    ]
     return search_space
+
 
 def Main(args):
     # 1. Import Data and Preprocessing 
@@ -164,7 +175,7 @@ def Main(args):
         # 2：
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # 3:
-        Define_experiment_conf()
+        Define_experiment_conf(args.model)
 
     else:
         X_list, y_list = select_train_elems()
