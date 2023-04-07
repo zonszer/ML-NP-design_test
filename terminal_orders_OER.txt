@@ -1,8 +1,8 @@
-ref_point
-split_ratio
-bs
-num_raw_samples
 
+
+
+
+python -utt PCE_analysis.py --id=test_onebatch --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V+slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=15 --PCA_dim=0.98 --ref_point=[0.,0.] --bs=10 --num_raw_samples=1024 --only_use_elem2 
 
 which model better for acc：===pearsonr===
 python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 

@@ -11,6 +11,8 @@ from ax.utils.notebook.plotting import render, init_notebook_plotting
 from ax.plot.pareto_utils import compute_posterior_pareto_frontier
 from ax.plot.pareto_frontier import plot_pareto_frontier
 
+from botorch.utils.sampling import draw_sobol_samples
+
 
 def plot_frontier():
     init_notebook_plotting()

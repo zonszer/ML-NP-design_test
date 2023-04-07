@@ -30,7 +30,7 @@ parser.add_argument('--PCA_dim', type=float, default=0.9999, help='input: float 
 parser.add_argument('--cycle_num', type=float, default=0, help='cycle_num')
 # parser.add_argument('--patch_sets', '--psets', '--tracks', type=int, default=30000, help='How many patch sets to generate. Works approximately.')
 # parser.add_argument('--bsNum', type=int, default=1400, help='how many batch will ues(only work in FineTune)')
-parser.add_argument('--batch_size', '--bs', type=int, default=10, metavar='BS', help='input batch size for training')
+parser.add_argument('--bs', type=int, default=10, metavar='BS', help='input batch size for training')
 parser.add_argument('--num_raw_samples', type=int, default=1024, help='input num of num_raw_samples for opt')
 # parser.add_argument('--test_batch_size', type=int, default=2048, metavar='BST', help='input batch size for testing (default: 1024)')
 # parser.add_argument('--cams_in_batch', '--camsb', type=int, default=5, help='how many cams are source ones for a batch in AMOS')
@@ -48,6 +48,7 @@ parser.add_argument('--split_ratio', type=float, default=0, help='split_ratio=te
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate') 
 # bool
 parser.add_argument('--use_concentration', default=False, action='store_true', help='turns off flip and 90deg rotation augmentation')
+parser.add_argument('--only_use_elem2', default=False, action='store_true', help='turns off flip and 90deg rotation augmentation')
 # parser.add_argument('--addAP', default=False, action='store_true', help='add AP lsos to standard loss')
 # parser.add_argument('--AP_loss', default=False, action='store_true')
 
@@ -73,7 +74,7 @@ def get_args(ipynb=False):
     txt += ['T:' + current_time]
     txt += ['num_ep:' + str(args.num_restarts)]
     if args.cycle_num: txt += ['cycle_num:' + str(args.cycle_num)]
-    txt += ['bs:' + str(args.batch_size)]
+    txt += ['bs:' + str(args.bs)]
     txt += ['seed:' + str(args.seed)]
     txt += ['model:' + str(args.model)]
     txt += ['PCA_dim:' + str(args.PCA_dim)]

@@ -152,6 +152,8 @@ def Main(args):
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=args.split_ratio)
         else:
             X_train, y_train = X, y
+        if args.only_use_elem2:
+            X_train, y_train = X_train[1:, :], y_train[1:, :]
 
         MOBO_one_batch(X_train, y_train, args.num_restarts, 
                        args.ref_point, args.bs, args.num_raw_samples, save_file_instance)

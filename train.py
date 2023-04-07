@@ -7,7 +7,24 @@ from utils.utils_ import *
 from plot import plot_CrossVal_avg
 from sklearn.model_selection import train_test_split
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
+import pandas as pd
+
 import torch
+from botorch import fit_gpytorch_model
+from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement
+from botorch.sampling import SobolQMCNormalSampler
+from botorch.utils.multi_objective.pareto import is_non_dominated
+from botorch.utils.multi_objective.hypervolume import Hypervolume
+
+from botorch.optim.optimize import optimize_acqf, optimize_acqf_list
+from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
+from botorch.acquisition.multi_objective.monte_carlo import qExpectedHypervolumeImprovement
+from botorch.utils.sampling import sample_simplex
+
+from botorch.models.gp_regression import SingleTaskGP
+from botorch.models.transforms.outcome import Standardize
+from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
+from botorch.utils.transforms import unnormalize
 
 def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
     bounds = np.zeros((2, dim_X))
@@ -18,8 +35,12 @@ def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
 
 def generate_initial_data(X, y, n):
     # generate training data
-    train_x = torch.FloatTensor(X)
-    train_obj = torch.FloatTensor(y)
+    tkwargs = {
+        # "dtype": torch.double,
+        "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    }
+    train_x = torch.DoubleTensor(X, **tkwargs)
+    train_obj = torch.DoubleTensor(y, **tkwargs)
     return train_x, train_obj
 
 def init_experiment_input(X, y, ref_point):
@@ -42,10 +63,10 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
     )
     candidates, _ = optimize_acqf(
         acq_function=acq_func,
-        bounds=standard_bounds,
+        bounds= bounds,
         q=bs,
         num_restarts=num_restarts,
-        raw_samples=raw_samples,       #?
+        raw_samples=raw_samples,
         options={"batch_limit": 5, "maxiter": 200, "nonnegative": True},
         sequential=True,
     )
@@ -72,18 +93,19 @@ def initialize_model(train_x, train_obj):
 def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, save_file_instance):
     N_TRIALS = 1
     N_BATCH = 1
-    MC_SAMPLES = raw_samples       #?
+    MC_SAMPLES = raw_samples
     verbose = True
 
+
     hvs_qehvi_all = []
-    X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point)
+    X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
     hv = Hypervolume(ref_point = ref_point)
 
     # average over multiple trials
     for trial in range(1, N_TRIALS + 1):
         print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
         hvs_qehvi = []
-        train_x_qehvi, train_obj_qehvi = generate_initial_data(X, y, n=X.shape[1])
+        train_x_qehvi, train_obj_qehvi = X, y
         mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
         
 
@@ -101,15 +123,18 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
             qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
 
             new_x_qehvi = optimize_qehvi_and_get_observation(
-                                model=model_qehvi, train_obj=train_obj_qehvi, qehvi_sampler=qehvi_sampler,
-                                num_restarts=num_restarts, bs=bs, bounds=bounds, raw_samples=MC_SAMPLES, 
-                                ref_point_=ref_point)      
+                            model=model_qehvi, train_obj=train_obj_qehvi, sampler=qehvi_sampler,
+                            num_restarts=num_restarts, bs=bs, bounds=bounds, raw_samples=MC_SAMPLES,
+                            ref_point_=ref_point)
             
             # update training points
             train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
             # train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj_qehvi])         #not used for now:date4.7
             print("New Samples--------------------------------------------")        #nsga-2
             print(train_x_qehvi[-bs:])
+        # save_logfile.send(('result', 'true VS pred:', dict2))
+        df = pd.DataFrame(train_x_qehvi[-bs:].numpy())
+        df.to_csv("recommend_descs.csv", index=True, header=False)
 
 
 #================================   以下是单变量的部分   ===================================
@@ -130,7 +155,7 @@ def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_uppe
     
     y_pred_train, y_uncer_train= gpy_regr.predict(X_train)
     y_pred_test, y_uncer_test = gpy_regr.predict(X_test)
-    dict2  = plt_true_vs_pred([y_train, y_test],
+    dict2 = plt_true_vs_pred([y_train, y_test],
                             [y_pred_train, y_pred_test],[y_uncer_train, y_uncer_test],
                             ['Mat52-Train','Mat52-Test'],
                             ['blue', 'darkorange'], criterion='correlation') 
