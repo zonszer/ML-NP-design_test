@@ -12,53 +12,56 @@ import torch
 def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
     bounds = np.zeros((2, dim_X))
     for i in range(dim_X):
-        bounds[0][i] = min(X[:, i])     #min of bound
-        bounds[1][i] = max(X[:, i])     #max of bound
+        bounds[0][i] = min(scale)     #min of bound
+        bounds[1][i] = max(scale)     #max of bound
+    return bounds
 
-    bounds=[[0., 0., 0., 0., 0., 0.],
-            [1., 1., 1., 1., 1., 1.]]       #.shape=[2,6]
-    
-
-def Define_experiment_conf(X, y):
-    dim = len(X[1])
-    num_objectives = len(y[1])
-    generate_bounds(X, y, dim, num_objectives)
-
-    # use defaut config: range(0, 1)
-    list_ofbound = []
-    for i in range(X.shape[1]):
-        x1 = RangeParameter(name=X_cols_names[i], lower=0, upper=1, parameter_type=ParameterType.FLOAT)
-        list_ofbound.append(x1)
-    search_space = SearchSpace(parameters=list_ofbound)
-
-    class MetricA(NoisyFunctionMetric):
-        def f(self, x: np.ndarray) -> float:
-            self.fetch_trial_data()
-            return float(y[0])
-    class MetricB(NoisyFunctionMetric):
-        def f(self, x: np.ndarray) -> float:
-            return float(branin_currin(torch.tensor(x))[1])
-    
-    if 'Mass' in y_cols[0] and 'slope' in y_cols[1]:
-        flag = False
-        ref_point = [0., 0.]
-    else:
-        raise ValueError('Wrong y_cols structure for OER dataset')
-
-    ref_point_ = torch.FloatTensor(ref_point)
-    bounds = torch.FloatTensor(bounds)
-
-    objective_thresholds = [
-        ObjectiveThreshold(metric=metric, bound=val, relative=False)
-        for metric, val in zip(mo.metrics, ref_point)
-    ]
-    return search_space
-
-def generate_initial_data(n=dim):
+def generate_initial_data(X, y, n):
     # generate training data
-    train_x = torch.FloatTensor(X_0)
-    train_obj = torch.FloatTensor(Y_0)
+    train_x = torch.FloatTensor(X)
+    train_obj = torch.FloatTensor(y)
     return train_x, train_obj
+
+def init_experiment_input(X, y, ref_point):
+    X_dim = len(X[1])
+    num_objectives = len(y[1])
+    bounds = generate_bounds(X, y, X_dim, num_objectives, scale=(0, 1))
+    bounds = torch.FloatTensor(bounds)
+    ref_point_ = torch.FloatTensor(eval(ref_point))                #
+    X, y = generate_initial_data(X=X, y=y, n=X_dim)
+    return X, y, bounds, ref_point_
+
+def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, bs, bounds, raw_samples, ref_point_):
+    """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
+    partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
+    acq_func = qExpectedHypervolumeImprovement(
+        model=model,
+        ref_point=ref_point_.tolist(), 
+        partitioning=partitioning,
+        sampler=sampler,
+    )
+    candidates, _ = optimize_acqf(
+        acq_function=acq_func,
+        bounds=standard_bounds,
+        q=bs,
+        num_restarts=num_restarts,
+        raw_samples=raw_samples,       #?
+        options={"batch_limit": 5, "maxiter": 200, "nonnegative": True},
+        sequential=True,
+    )
+    new_x = unnormalize(candidates.detach(), bounds=bounds)
+    # new_obj = torch.FloatTensor([[  -6.7064,   -5.8886],        #？为啥不用根据new_x去计算new_obj # not used for now:date4.7
+    #     [ -51.7423,   -6.8102],
+    #     [ -38.3063,   -6.8469],
+    #     [ -13.4827,   -9.0434],
+    #     [ -10.3850,  -10.6817],
+    #     [ -27.7399,   -6.6023],
+    #     [ -64.7528,   -2.1669],
+    #     [-168.0079,   -4.3890],
+    #     [ -17.1416,  -10.4511],
+    #     [  -7.0856,   -5.5974]])        #.shape = [10,2]
+
+    return new_x        
 
 def initialize_model(train_x, train_obj):
     # define models for objective and constraint
@@ -66,7 +69,50 @@ def initialize_model(train_x, train_obj):
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     return mll, model
 
+def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, save_file_instance):
+    N_TRIALS = 1
+    N_BATCH = 1
+    MC_SAMPLES = raw_samples       #?
+    verbose = True
 
+    hvs_qehvi_all = []
+    X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point)
+    hv = Hypervolume(ref_point = ref_point)
+
+    # average over multiple trials
+    for trial in range(1, N_TRIALS + 1):
+        print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
+        hvs_qehvi = []
+        train_x_qehvi, train_obj_qehvi = generate_initial_data(X, y, n=X.shape[1])
+        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
+        
+
+        pareto_mask = is_non_dominated(train_obj_qehvi)
+        pareto_y = train_obj_qehvi[pareto_mask]
+
+        volume = hv.compute(pareto_y)
+        hvs_qehvi.append(volume)
+    
+        print("Hypervolume is ", volume)
+        # run N_BATCH rounds of BayesOpt after the initial random batch
+        for iteration in range(1, N_BATCH + 1):    
+        
+            fit_gpytorch_model(mll_qehvi)
+            qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
+
+            new_x_qehvi = optimize_qehvi_and_get_observation(
+                                model=model_qehvi, train_obj=train_obj_qehvi, qehvi_sampler=qehvi_sampler,
+                                num_restarts=num_restarts, bs=bs, bounds=bounds, raw_samples=MC_SAMPLES, 
+                                ref_point_=ref_point)      
+            
+            # update training points
+            train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
+            # train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj_qehvi])         #not used for now:date4.7
+            print("New Samples--------------------------------------------")        #nsga-2
+            print(train_x_qehvi[-bs:])
+
+
+#================================   以下是单变量的部分   ===================================
 def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
 
@@ -145,6 +191,7 @@ def cross_train_validation(X_norm, y, Kfold, num_restarts, ker_lengthscale_upper
     save_logfile.send(('model', '', gpy_regr))
     return dict1
 
+#================================   以下是2 elem预测3 elem的部分   ===================================
 def cycle_train(train_data, test_data, num_restarts, ker_lengthscale_upper, ker_var_upper):
     y_list_descr = []                                   #此cell为重复之前的思路的总结版
     for rep in np.arange(10):                           #10次cycle，这里相当于repeat 10次

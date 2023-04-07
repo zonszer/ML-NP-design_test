@@ -8,7 +8,7 @@ import numpy as np
 import time
 from glob import glob
 import csv
-
+import torch
 
 def write_dict_to_csv(data: dict, file_path):
     with open(file_path, 'a', newline='') as csvfile:
@@ -19,11 +19,11 @@ def write_dict_to_csv(data: dict, file_path):
 def become_deterministic(seed=0):
     random.seed(seed)
     np.random.seed(seed)
-    # torch.cuda.manual_seed_all(seed)
-    # torch.cuda.manual_seed(seed)
-    # torch.manual_seed(seed)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
+    torch.cuda.manual_seed_all(seed)
+    torch.cuda.manual_seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 def dict_add(dictionary:dict, key, value, acc='list'):
     if key not in dictionary.keys():

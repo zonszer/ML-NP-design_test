@@ -148,12 +148,17 @@ def Main(args):
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # 3:
         # X_list, y_list = select_train_elems()     #first try without split elem data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
-        Define_experiment_conf(  X=X_train,  y=y_train)
+        if args.split_ratio != 0:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=args.split_ratio)
+        else:
+            X_train, y_train = X, y
 
-        log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
-        plot_CycleTrain(y_list_descr, X_train, X_test)
+        MOBO_one_batch(X_train, y_train, args.num_restarts, 
+                       args.ref_point, args.bs, args.num_raw_samples, save_file_instance)
 
+        # log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
+        # plot_CycleTrain(y_list_descr, X_train, X_test)
+        
     else:
         raise ValueError('Unknow dataset')
 

@@ -10,6 +10,7 @@ parser.add_argument('--model_dir', default='Models/', help='folder to output mod
 parser.add_argument('--id', default='XXXX', help='name')
 parser.add_argument('--col_labels', default= "['material', 'Elemental proportions', \
                                             'Mass activity at 1.53V', 'slope relative to Ru']", help='   ')
+parser.add_argument('--ref_point', default= "[0.,0.]", help='   ')
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')    
 parser.add_argument('--data_path', default='data/OER-Summary-LZ.xlsx', help='  ')
@@ -29,7 +30,8 @@ parser.add_argument('--PCA_dim', type=float, default=0.9999, help='input: float 
 parser.add_argument('--cycle_num', type=float, default=0, help='cycle_num')
 # parser.add_argument('--patch_sets', '--psets', '--tracks', type=int, default=30000, help='How many patch sets to generate. Works approximately.')
 # parser.add_argument('--bsNum', type=int, default=1400, help='how many batch will ues(only work in FineTune)')
-parser.add_argument('--batch_size', '--bs', type=int, default=0, metavar='BS', help='input batch size for training')
+parser.add_argument('--batch_size', '--bs', type=int, default=10, metavar='BS', help='input batch size for training')
+parser.add_argument('--num_raw_samples', type=int, default=1024, help='input num of num_raw_samples for opt')
 # parser.add_argument('--test_batch_size', type=int, default=2048, metavar='BST', help='input batch size for testing (default: 1024)')
 # parser.add_argument('--cams_in_batch', '--camsb', type=int, default=5, help='how many cams are source ones for a batch in AMOS')
 # parser.add_argument('--min_sets_per_img', '--minsets', type=int, default=-1, help='')
@@ -41,6 +43,7 @@ parser.add_argument('--seed', type=int, default=0, help='random seed (default: 0
 # float
 parser.add_argument('--ker_lengthscale_upper', type=float, default=25, help='ker.lengthscale upper limit') 
 parser.add_argument('--ker_var_upper', type=float, default=100, help='ker.variance upper limit') 
+parser.add_argument('--split_ratio', type=float, default=0, help='split_ratio=test_size/(test_size+train_size') 
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate') 
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate') 
 # bool
