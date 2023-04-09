@@ -96,7 +96,6 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
     MC_SAMPLES = raw_samples
     verbose = True
 
-
     hvs_qehvi_all = []
     X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
     hv = Hypervolume(ref_point = ref_point)
@@ -122,7 +121,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
             fit_gpytorch_model(mll_qehvi)
             qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
 
-            new_x_qehvi = optimize_qehvi_and_get_observation(
+            new_x_qehvi = optimize_qehvi_and_get_observation(   #TODO: 设置优化方向，min or max traget column
                             model=model_qehvi, train_obj=train_obj_qehvi, sampler=qehvi_sampler,
                             num_restarts=num_restarts, bs=bs, bounds=bounds, raw_samples=MC_SAMPLES,
                             ref_point_=ref_point)
@@ -221,14 +220,14 @@ def cycle_train(train_data, test_data, num_restarts, ker_lengthscale_upper, ker_
     y_list_descr = []                                   #此cell为重复之前的思路的总结版
     for rep in np.arange(10):                           #10次cycle，这里相当于repeat 10次
 
-        def select_for_next():
-            elem4_indx_random = [np.random.randint(len(X_val)) for i in np.arange(10)]
-            X_val_init = X_val[elem4_indx_random]
-            y_val_init = y_val[elem4_indx_random]                   
-            X_init = np.concatenate([X_train, X_test, X_val_init])          #这里的X_init训练集包括所有的elem3以及5个elem4 dp
-            y_init = np.concatenate([y_train, y_test, y_val_init])
-            X_remain = np.delete(X_val,elem4_indx_random, 0)
-            y_remain = np.delete(y_val,elem4_indx_random, 0) 
+        # def select_for_next():
+        elem4_indx_random = [np.random.randint(len(X_val)) for i in np.arange(10)]
+        X_val_init = X_val[elem4_indx_random]
+        y_val_init = y_val[elem4_indx_random]                   
+        X_init = np.concatenate([X_train, X_test, X_val_init])          #这里的X_init训练集包括所有的elem3以及5个elem4 dp
+        y_init = np.concatenate([y_train, y_test, y_val_init])
+        X_remain = np.delete(X_val,elem4_indx_random, 0)
+        y_remain = np.delete(y_val,elem4_indx_random, 0) 
 
         for it in np.arange(20):                                        #每次cycle中进行20次迭代（最终训练集size = init_X_size + 20*10)
             print("highest power so far: ", np.max(y_init))             #源码中似乎是每次进行一次X_init的更新后进行一次pca（每个batch后）
