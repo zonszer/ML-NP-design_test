@@ -173,7 +173,7 @@ def get_fully_permutation_index(elems_num, get_num):
 
 def init_grid(all_elems_num, Ru_ratio, row_num):
     grid = np.zeros((row_num, all_elems_num))
-    grid[:, 0] = Ru_ratio
+    grid[:, -1] = Ru_ratio      #add Ru to the last colum
     return grid
 
 def grid_add_elem_ratio(grid_init, p_index, set_ratio, sum_of2elems_ratio):
@@ -183,7 +183,7 @@ def grid_add_elem_ratio(grid_init, p_index, set_ratio, sum_of2elems_ratio):
             grid_init[row, p_index[row][elem_idx]] = set_ratio[elem_idx]*0.1 * sum_of2elems_ratio
     return grid_init
     
-def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(3,7), (5,5), (1,9)], Ru_ratio=0.1):   #list:
+def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(5,5),(3,7), (1,9)], Ru_ratio=0.1):   #list:
     """
     Generates anonymous stoichiometric formulas for a set
     of n_components with specified coefficients
@@ -201,26 +201,25 @@ def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(3,7), (5,5
         for i in set_ratios:
             if sum(i) != 10 or len(i) != 2:
                 raise ValueError("The sum of the ratios must be 10")
-        # grid = np.array(setpoints)
-        # args = np.array([grid for _ in range(n_components)])
-        # stoics = np.array(list(itertools.product(*args)))       #生成point值的全排列
+
         grid_list = []
         for i in range(len(set_ratios)):
-            p_index = np.array(get_fully_permutation_index(n_components, len(set_ratios[i])))     #-1:because 1 elem(RU) is fixed
+            p_index = np.array(get_fully_permutation_index(n_components-1, len(set_ratios[i])))     #-1:because 1 elem(RU) is fixed
             grid_sec_init = init_grid(n_components, Ru_ratio, len(p_index))
             grid_sec = grid_add_elem_ratio(grid_sec_init, p_index, set_ratios[i], sum_of2elems_ratio)
             grid_list.append(grid_sec)
             
         grid = np.concatenate(grid_list, axis=0)
-        print(grid)
 
-        print(args[p_index].shape)
-    else:
+    else:       #TODO: rewrite
         grid = np.linspace(0,1,npoints)
         args = [grid for _ in range(n_components-1)]
         # stoics = np.array(list(itertools.product(*args)))       #生成point值的全排列
         p_index = get_fully_permutation_index(n_components, grid_elems_num-1)     #-1:because 1 elem(RU) is fixed
-        print(grid[p_index])
+        # print(grid[p_index])
+
+    return grid
+
 
 def compare_to_seed(suggestions, df):
     for j, suggestion in suggestions.iterrows():
