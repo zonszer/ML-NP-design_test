@@ -110,20 +110,24 @@ def initialize_model(train_x, train_obj):
 
 class SearchSpace_Sampler(NormalMCSampler):
     def __init__(self, fn_dict, MC_SAMPLES='all'):
-        super().__init__()
-        # self.bounds = bounds
         self.fn_input = fn_dict['fn_input']
-        self.MC_SAMPLES = MC_SAMPLES
+        self.df = pd.read_pickle('data/SearchSpace_3elems.pkl')
+        self.MC_SAMPLES = self.get_sample_shape(MC_SAMPLES)
+        super().__init__(self.MC_SAMPLES)
+        # self.bounds = bounds
+
+    def get_sample_shape(self, num):
+        if num == 'all':
+            MC_SAMPLES = self.df.shape[0]
+        else:
+            MC_SAMPLES = num
+        return MC_SAMPLES
 
     def _construct_base_samples(self, size):
-        df = pd.read_pickle('data/SearchSpace_3elems.pkl')
-        if self.MC_SAMPLES == 'all':
-            samples_desc = self.PCA(df)
-        else:
-            assert size == self.MC_SAMPLES
-            samples_desc = self.PCA(df.sample(n=self.MC_SAMPLES))
-
-        samples = torch.DoubleTensor(samples_desc, **tkwargs)
+        assert size == self.MC_SAMPLES
+        daf = df.sample(n=self.MC_SAMPLES) if self.MC_SAMPLES != self.df.shape[0] else daf=df
+        samples_desc = self.PCA(daf)
+        samples = torch.DoubleTensor(samples_desc).cuda()
         return samples
 
     def PCA(self, df):
