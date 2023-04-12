@@ -112,7 +112,7 @@ class SearchSpace_Sampler(NormalMCSampler):
     def __init__(self, fn_dict, MC_SAMPLES='all'):
         super().__init__()
         # self.bounds = bounds
-        self.fn = fn_dict
+        self.fn_input = fn_dict['fn_input']
         self.MC_SAMPLES = MC_SAMPLES
 
     def _construct_base_samples(self, size):
@@ -130,7 +130,7 @@ class SearchSpace_Sampler(NormalMCSampler):
         _ = df.shape[1] - 132  # changed param1
         desc = df.iloc[:, _:].values
         # X = np.array(desc)
-        return self.fn_pcaX.transform(desc)
+        return self.fn_input(desc)
 
 
 def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, save_file_instance, fn_dict):
@@ -161,7 +161,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
         for iteration in range(1, N_BATCH + 1):
             fit_gpytorch_model(mll_qehvi)
             # qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
-            new_sampler = SearchSpace_Sampler(fn_pcaX, fn_dict)
+            new_sampler = SearchSpace_Sampler(fn_dict, MC_SAMPLES)
 
             new_x_qehvi = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler,

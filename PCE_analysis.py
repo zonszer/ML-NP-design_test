@@ -109,7 +109,8 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     X_pca = pca.fit_transform(X_norm)                    #PCA之前是否需要StandardScaler norm一下（和原论文中顺序不同）
     X_pca_norm = std_scalerX_afpca.fit_transform(X_pca)
     # y_norm =  std_scalery.fit_transform(y)
-    fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
+    # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
+    fn_dict = {}
     fn_dict['fn_input'] = fn_comb(std_scalerX, pca, std_scalerX_afpca)
 
     if 'OER' in dataset_name:

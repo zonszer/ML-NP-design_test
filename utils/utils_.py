@@ -36,7 +36,11 @@ def dict_add(dictionary:dict, key, value, acc='list'):
     dictionary[key] += [value]
 
 def fn_comb(**kwargs):
-    
+    def comb(X):
+        for i in kwargs:
+            X = i.transform(X)
+        return X
+    return comb
 
 class measure_time():
     def __init__(self):
