@@ -27,7 +27,7 @@ from sklearn.model_selection import train_test_split
 
 
 def Preprocessing(path, col_labels, data_path):
-    df = get_data(path, col_labels)
+    df = get_data(path, col_labels) #
     if 'OER' in data_path:
         df = add_formula_col_OER(df)
     elif 'PCE' in data_path:
@@ -38,12 +38,15 @@ def Preprocessing(path, col_labels, data_path):
     df = add_comp_col(df_cleaned)
     return df
 
-def get_data(path, col_labels):
+def get_data(path, col_labels=None):
     '''read data'''
-    df_pec_data = pd.read_excel(path, header = 0)
+    if col_labels==None:
+        df_pec_data = pd.read_excel(path)
+    else:
+        df_pec_data = pd.read_excel(path, header = 0)
+        df_pec_data.columns = eval(col_labels)
     df_pec_data['material'] = df_pec_data['material'].ffill()
     # df_pec_data = df_pec_data.sort_values(['Sample'], ignore_index = True)
-    df_pec_data.columns = eval(col_labels)
     df_pec_data.dropna(axis=0, how='all', inplace=True)
     df_pec_data = df_pec_data.reset_index(drop=True)
     return df_pec_data

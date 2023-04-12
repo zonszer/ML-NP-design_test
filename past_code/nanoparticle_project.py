@@ -171,7 +171,7 @@ def get_stoichiometric_formulas(n_components, npoints=6):
         (list): unique stoichiometric formula from an
             allowed grid of integers.
     """
-    grid = np.linspace(0,1,npoints)
+    grid = np.linspace(0,1,npoints)     #npoints = 11
     args = [grid for _ in range(n_components-1)]
     stoics = np.array(list(itertools.product(*args)))
     stoics = stoics[ stoics.sum(axis=1) <= 1.0 ]
