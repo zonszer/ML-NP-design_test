@@ -67,7 +67,7 @@ def init_experiment_input(X, y, ref_point):
     return X, y, bounds, ref_point_
 
 
-def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, bs, bounds, raw_samples, ref_point_):
+def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, bs, bounds, raw_samples, ref_point_, all_descs ):
     """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
     partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
     acq_func = qExpectedHypervolumeImprovement(
@@ -75,12 +75,13 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
         ref_point=ref_point_.tolist(),
         partitioning=partitioning,
         sampler=sampler,
-        maximize=True,
+        # maximize=True,
     )
     candidates, _ = optimize_acqf_discrete(
         acq_function=acq_func,
         bounds=bounds,
         q=bs,
+        choices=all_descs,
         num_restarts=num_restarts,
         raw_samples=raw_samples,
         options={"batch_limit": 5, "maxiter": 200, "nonnegative": True},
@@ -109,9 +110,9 @@ def initialize_model(train_x, train_obj):
 
 
 class SearchSpace_Sampler(NormalMCSampler):
-    def __init__(self, fn_dict, MC_SAMPLES='all'):
+    def __init__(self, fn_dict, data_df, MC_SAMPLES='all'):
         self.fn_input = fn_dict['fn_input']
-        self.df = pd.read_pickle('data/SearchSpace_3elems.pkl')
+        self.df = data_df
         self.MC_SAMPLES = self.get_sample_shape(MC_SAMPLES)
         super().__init__(self.MC_SAMPLES)
         # self.bounds = bounds
@@ -125,7 +126,7 @@ class SearchSpace_Sampler(NormalMCSampler):
 
     def _construct_base_samples(self, size):
         assert size == self.MC_SAMPLES
-        daf = df.sample(n=self.MC_SAMPLES) if self.MC_SAMPLES != self.df.shape[0] else daf=df
+        daf = df.sample(n=self.MC_SAMPLES) if self.MC_SAMPLES != self.df.shape[0] else df
         samples_desc = self.PCA(daf)
         samples = torch.DoubleTensor(samples_desc).cuda()
         return samples
@@ -142,6 +143,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
     N_BATCH = 1
     MC_SAMPLES = raw_samples
     verbose = True
+    df_space = pd.read_pickle('data/SearchSpace_3elems.pkl')
 
     hvs_qehvi_all = []
     X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
@@ -165,12 +167,13 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
         for iteration in range(1, N_BATCH + 1):
             fit_gpytorch_model(mll_qehvi)
             # qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
-            new_sampler = SearchSpace_Sampler(fn_dict, MC_SAMPLES)
+            new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)
+            all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
 
             new_x_qehvi = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler,
                 num_restarts=num_restarts, bs=bs, bounds=bounds, raw_samples=MC_SAMPLES,
-                ref_point_=ref_point)
+                ref_point_=ref_point, all_descs=all_descs)
 
             # update training points
             train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])

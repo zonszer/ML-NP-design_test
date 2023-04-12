@@ -151,7 +151,7 @@ def Main(args):
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
-    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim, args.data_path, args.seed)
+    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim, args.data_path)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
