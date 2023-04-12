@@ -35,6 +35,9 @@ def dict_add(dictionary:dict, key, value, acc='list'):
             assert False, 'only list or set'
     dictionary[key] += [value]
 
+def fn_comb(**kwargs):
+    
+
 class measure_time():
     def __init__(self):
         pass
