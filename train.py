@@ -124,11 +124,16 @@ class SearchSpace_Sampler(NormalMCSampler):
             MC_SAMPLES = num
         return MC_SAMPLES
 
-    def _construct_base_samples(self, size):
-        assert size == self.MC_SAMPLES
-        daf = df.sample(n=self.MC_SAMPLES) if self.MC_SAMPLES != self.df.shape[0] else df
+    def forward(self, posterior):
+        samples = self._construct_base_samples()
+        return samples.unsqueeze(1)
+
+    def _construct_base_samples(self):       #TODO: posterior for what
+        # assert size == self.MC_SAMPLES
+        daf = self.df.sample(n=self.MC_SAMPLES) if self.MC_SAMPLES != self.df.shape[0] else self.df
         samples_desc = self.PCA(daf)
         samples = torch.DoubleTensor(samples_desc).cuda()
+        self.base_samples = samples
         return samples
 
     def PCA(self, df):
@@ -166,9 +171,9 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
         # run N_BATCH rounds of BayesOpt after the initial random batch
         for iteration in range(1, N_BATCH + 1):
             fit_gpytorch_model(mll_qehvi)
-            # qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
             new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
+            new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
 
             new_x_qehvi = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler,
