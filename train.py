@@ -25,6 +25,12 @@ from botorch.models.gp_regression import SingleTaskGP
 from botorch.models.transforms.outcome import Standardize
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 from botorch.utils.transforms import unnormalize
+from botorch.sampling.samplers import Sampler
+
+tkwargs = {
+    # "dtype": torch.double,
+    "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+}
 
 def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
     bounds = np.zeros((2, dim_X))
@@ -35,10 +41,7 @@ def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
 
 def generate_initial_data(X, y, n):
     # generate training data
-    tkwargs = {
-        # "dtype": torch.double,
-        "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    }
+
     train_x = torch.DoubleTensor(X, **tkwargs)
     train_obj = torch.DoubleTensor(y, **tkwargs)
     return train_x, train_obj
@@ -60,6 +63,7 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
         ref_point=ref_point_.tolist(), 
         partitioning=partitioning,
         sampler=sampler,
+        maximize=True,
     )
     candidates, _ = optimize_acqf(
         acq_function=acq_func,
@@ -90,7 +94,32 @@ def initialize_model(train_x, train_obj):
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     return mll, model
 
-def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, save_file_instance):
+
+class SearchSpace_Sampler(Sampler):
+    def __init__(self, fn_pcaX, MC_SAMPLES='all'):
+        super().__init__()
+        # self.bounds = bounds
+        self.fn_pcaX = fn_pcaX
+        self.MC_SAMPLES = MC_SAMPLES
+
+    def draw(self, size):
+        df = pd.read_pickle('data/SearchSpace_3elems.pkl')
+        if self.MC_SAMPLES == 'all':
+            samples_desc = self.PCA(df)
+        else:
+            samples_desc = self.PCA(df.sample(n=self.MC_SAMPLES))
+
+        samples = torch.DoubleTensor(samples_desc, **tkwargs)
+        return samples
+
+    def PCA(self, df):
+        _ = df.shape[1] - 132           # changed param1 
+        desc = df.iloc[:, _:].values
+        # X = np.array(desc)
+        return self.fn_pcaX.transform(desc)
+
+
+def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, save_file_instance, fn_pcaX):
     N_TRIALS = 1
     N_BATCH = 1
     MC_SAMPLES = raw_samples
@@ -119,10 +148,11 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
         for iteration in range(1, N_BATCH + 1):    
         
             fit_gpytorch_model(mll_qehvi)
-            qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
+            # qehvi_sampler = SobolQMCNormalSampler(MC_SAMPLES)
+            new_sampler = SearchSpace_Sampler(fn_pcaX, MC_SAMPLES)
 
-            new_x_qehvi = optimize_qehvi_and_get_observation(   #TODO: 设置优化方向，min or max traget column
-                            model=model_qehvi, train_obj=train_obj_qehvi, sampler=qehvi_sampler,
+            new_x_qehvi = optimize_qehvi_and_get_observation(                   
+                            model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler,
                             num_restarts=num_restarts, bs=bs, bounds=bounds, raw_samples=MC_SAMPLES,
                             ref_point_=ref_point)
             
