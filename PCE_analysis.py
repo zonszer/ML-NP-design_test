@@ -94,7 +94,7 @@ def Add_extract_descriptors(df_pec, use_concentration):
     return desc
 
       
-def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
+def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, seed):
     std_scalerX = MinMaxScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
        #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
     std_scalerX_afpca = MinMaxScaler()
@@ -104,14 +104,14 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))   
     # plot_Xy_relation(X, y)
 
-    pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))                  #使用：则会被降到5维
+    pca = PCA(n_components=PCA_dim_select(selected_method, n_dims), random_state=seed)                  #使用：则会被降到5维
     X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
     X_pca = pca.fit_transform(X_norm)                    #PCA之前是否需要StandardScaler norm一下（和原论文中顺序不同）
     X_pca_norm = std_scalerX_afpca.fit_transform(X_pca)
     # y_norm =  std_scalery.fit_transform(y)
     # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
     fn_dict = {}
-    fn_dict['fn_input'] = fn_comb(std_scalerX, pca, std_scalerX_afpca)
+    fn_dict['fn_input'] = fn_comb([std_scalerX, pca, std_scalerX_afpca])
 
     if 'OER' in dataset_name:
         assert y.shape[1] == 2 
@@ -151,7 +151,7 @@ def Main(args):
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
-    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim, args.data_path)
+    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim, args.data_path, args.seed)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model

@@ -35,7 +35,7 @@ def dict_add(dictionary:dict, key, value, acc='list'):
             assert False, 'only list or set'
     dictionary[key] += [value]
 
-def fn_comb(**kwargs):
+def fn_comb(kwargs):
     def comb(X):
         for i in kwargs:
             X = i.transform(X)
