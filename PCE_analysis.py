@@ -94,9 +94,10 @@ def Add_extract_descriptors(df_pec, use_concentration):
     return desc
 
       
-def norm_PCA(X_compo, y_pmax, selected_method, n_dims, dataset_name):
+def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     std_scalerX = MinMaxScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
        #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
+    std_scalerX_afpca = MinMaxScaler()
 
     X = np.array(X_compo)
     #X_log = np.log(X.astype('float'))   
@@ -106,17 +107,23 @@ def norm_PCA(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))                  #使用：则会被降到5维
     X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
     X_pca = pca.fit_transform(X_norm)                    #PCA之前是否需要StandardScaler norm一下（和原论文中顺序不同）
+    X_pca_norm = std_scalerX_afpca.fit_transform(X_pca)
     # y_norm =  std_scalery.fit_transform(y)
+    fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
+    fn_dict['fn_input'] = fn_comb(std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca)
+
     if 'OER' in dataset_name:
         assert y.shape[1] == 2 
         std_scaler_y0 = StandardScaler()
         std_scaler_y1 = StandardScaler()
-        y[:, 0] = std_scaler_y0.fit_transform(y[:, 0]) 
-        y[:, 1] = std_scaler_y1.fit_transform(y[:, 1]) 
+        y[:, 0] = std_scaler_y0.fit_transform(y[:, 0].reshape(-1, 1))[:, -1]
+        y[:, 1] = std_scaler_y1.fit_transform(y[:, 1].reshape(-1, 1))[:, -1]
         assert '''y1 is y['slope relative to Ru']'''
-        y[:, 1] = 2 - y[:, 1]
+        y[:, 1] = - y[:, 1]
+        fn_dict['std_scaler_y0'] = std_scaler_y0
+        fn_dict['std_scaler_y1'] = std_scaler_y1
 
-    return X_pca, pca, y
+    return X_pca_norm, y, fn_dict
 
 def PCA_dim_select(selected_method, n_dims):
     if selected_method == 'auto':
@@ -143,7 +150,7 @@ def Main(args):
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
-    X, f_pcaX, y = norm_PCA(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim, args.data_path)
+    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim, args.data_path)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
@@ -167,7 +174,7 @@ def Main(args):
             X_train, y_train = X_train[1:, :], y_train[1:, :]
 
         MOBO_one_batch(X_train, y_train, args.num_restarts, 
-                       args.ref_point, args.bs, args.num_raw_samples, save_file_instance, f_pcaX)
+                       args.ref_point, args.bs, args.num_raw_samples, save_file_instance, fn_dict)
 
         # log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X_train, X_test)
