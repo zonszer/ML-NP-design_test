@@ -51,7 +51,10 @@ def init_experiment_input(X, y, ref_point):
     num_objectives = len(y[1])
     bounds = generate_bounds(X, y, X_dim, num_objectives, scale=(0, 1))
     bounds = torch.FloatTensor(bounds)
-    ref_point_ = torch.FloatTensor(eval(ref_point))                #
+    if ref_point is None:
+        ref_point_ = torch.min(y, axis=1)[1] * 0.9
+    else:
+        ref_point_ = torch.FloatTensor(eval(ref_point))                #
     X, y = generate_initial_data(X=X, y=y, n=X_dim)
     return X, y, bounds, ref_point_
 
@@ -126,6 +129,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, s
     verbose = True
 
     hvs_qehvi_all = []
+    
     X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
     hv = Hypervolume(ref_point = ref_point)
 

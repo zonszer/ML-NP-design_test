@@ -11,7 +11,7 @@ parser.add_argument('--id', default='XXXX', help='name')
 parser.add_argument('--col_labels', default=None, help="if excel has col name then use None, else: "
                                                        "['material', 'Elemental proportions', \
                                                         'Mass activity at 1.53V', 'slope relative to Ru']")
-parser.add_argument('--ref_point', default= "[0.,0.]", help='   ')
+parser.add_argument('--ref_point', default= None, help='   ')
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')    
 parser.add_argument('--data_path', default='data/OER-Summary-LZ.xlsx', help='  ')
