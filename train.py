@@ -130,7 +130,7 @@ class SearchSpace_Sampler(NormalMCSampler):
 
     def _construct_base_samples(self):       #TODO: posterior for what
         # assert size == self.MC_SAMPLES
-        daf = self.df.sample(n=self.MC_SAMPLES) if self.MC_SAMPLES != self.df.shape[0] else self.df
+        daf = self.df.sample(n=self.MC_SAMPLES) 
         samples_desc = self.PCA(daf)
         samples = torch.DoubleTensor(samples_desc).cuda()
         self.base_samples = samples
@@ -143,10 +143,10 @@ class SearchSpace_Sampler(NormalMCSampler):
         return self.fn_input(desc)
 
 
-def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, raw_samples, save_file_instance, fn_dict):
+def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_samples, save_file_instance, fn_dict):
     N_TRIALS = 1
     N_BATCH = 1
-    MC_SAMPLES = raw_samples
+    MC_SAMPLES = post_mc_samples
     verbose = True
     df_space = pd.read_pickle('data/SearchSpace_3elems.pkl')
 

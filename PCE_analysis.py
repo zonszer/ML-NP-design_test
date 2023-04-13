@@ -175,7 +175,7 @@ def Main(args):
             X_train, y_train = X_train[1:, :], y_train[1:, :]
 
         MOBO_one_batch(X_train, y_train, args.num_restarts, 
-                       args.ref_point, args.bs, args.num_raw_samples, save_file_instance, fn_dict)
+                       args.ref_point, args.bs, args.num_mc_samples, save_file_instance, fn_dict)
 
         # log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X_train, X_test)
