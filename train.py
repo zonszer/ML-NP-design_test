@@ -185,14 +185,29 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
             # train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj_qehvi])         #not used for now:date4.7
             print("New Samples--------------------------------------------")  # nsga-2
             print(train_x_qehvi[-bs:])
-        # save_logfile.send(('result', 'true VS pred:', dict2))
-        df_desc = pd.DataFrame(all_descs.cpu().numpy())
-        df_desc.to_csv("all_PCAdescs4.13.csv", index=True, header=False)
-        df = pd.DataFrame(train_x_qehvi[-bs:].cpu().numpy())
-        df.to_csv("recommend_descs4.13.csv", index=True, header=False)
+
+            # save_logfile.send(('result', 'true VS pred:', dict2))
+            df_desc = pd.DataFrame(all_descs.cpu().numpy())
+            df_desc.to_csv("all_PCAdescs4.13.csv", index=True, header=False)
+            recommend_descs = train_x_qehvi[-bs:]
+
+            cuda.empty_cache()
+            distmin_idx = compute_L2dist(recommend_descs, all_descs)
+            save_recommend_comp(distmin_idx, df_space, recommend_descs)
+
+def save_recommend_comp(idx, df_space, recommend_descs):
+    df_space[idx].to_csv("recommend_comp4.13.csv", index=True, header=True)
+    df = pd.DataFrame(recommend_descs.cpu().numpy())
+    df.to_csv("recommend_descs4.13.csv", index=True, header=False)
 
 def compute_L2dist(target_obj, space):
-    
+    dm = torch.cdist(target_obj, space)
+    dist_min, distmin_idx = dm.min(dim=1)
+    if dist_min.min() > 1e-4:
+        print("Warning: the distance between the recommended and the actual is too large, please check it!")
+    return distmin_idx
+
+
 
 # ================================   以下是单变量的部分   ===================================
 def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
