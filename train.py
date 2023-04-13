@@ -148,7 +148,8 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
     N_BATCH = 1
     MC_SAMPLES = post_mc_samples
     verbose = True
-    df_space = pd.read_pickle('data/SearchSpace_3elems.pkl', index_col=0)
+    df_space = pd.read_pickle('data/SearchSpace_3elems_Ru0.7.pkl')
+    df_space.reset_index(drop=True, inplace=True)
 
     hvs_qehvi_all = []
     X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
@@ -187,16 +188,14 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
             print(train_x_qehvi[-bs:])
 
             # save_logfile.send(('result', 'true VS pred:', dict2))
-            df_desc = pd.DataFrame(all_descs.cpu().numpy())
-            df_desc.to_csv("all_PCAdescs4.13.csv", index=True, header=False)
             recommend_descs = train_x_qehvi[-bs:]
 
-            cuda.empty_cache()
+            torch.cuda.empty_cache()
             distmin_idx = compute_L2dist(recommend_descs, all_descs)
             save_recommend_comp(distmin_idx, df_space, recommend_descs)
 
 def save_recommend_comp(idx, df_space, recommend_descs):
-    df_space[idx].to_csv("recommend_comp4.13.csv", index=True, header=True)
+    df_space.iloc[idx , :].to_csv("recommend_comp4.13.csv", index=True, header=True)
     df = pd.DataFrame(recommend_descs.cpu().numpy())
     df.to_csv("recommend_descs4.13.csv", index=True, header=False)
 
@@ -205,8 +204,7 @@ def compute_L2dist(target_obj, space):
     dist_min, distmin_idx = dm.min(dim=1)
     if dist_min.min() > 1e-4:
         print("Warning: the distance between the recommended and the actual is too large, please check it!")
-    return distmin_idx
-
+    return distmin_idx.cpu().numpy()
 
 
 # ================================   以下是单变量的部分   ===================================
