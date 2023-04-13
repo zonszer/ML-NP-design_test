@@ -148,7 +148,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
     N_BATCH = 1
     MC_SAMPLES = post_mc_samples
     verbose = True
-    df_space = pd.read_pickle('data/SearchSpace_3elems_Ru0.7.pkl')
+    df_space = pd.read_pickle('data/SearchSpace_3elems_Ru0.8.pkl')
     df_space.reset_index(drop=True, inplace=True)
 
     hvs_qehvi_all = []
@@ -185,25 +185,29 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
             train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
             # train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj_qehvi])         #not used for now:date4.7
             print("New Samples--------------------------------------------")  # nsga-2
-            print(train_x_qehvi[-bs:])
+            recommend_descs = train_x_qehvi[-bs:]
+            # print(recommend_descs)
 
             # save_logfile.send(('result', 'true VS pred:', dict2))
-            recommend_descs = train_x_qehvi[-bs:]
 
             torch.cuda.empty_cache()
             distmin_idx = compute_L2dist(recommend_descs, all_descs)
             save_recommend_comp(distmin_idx, df_space, recommend_descs)
 
-def save_recommend_comp(idx, df_space, recommend_descs):
+def save_recommend_comp(idx, df_space, recommend_descs, all_descs=None):
     df_space.iloc[idx , :].to_csv("recommend_comp4.13.csv", index=True, header=True)
+    print(df_space.iloc[idx , 0:4])
     df = pd.DataFrame(recommend_descs.cpu().numpy())
     df.to_csv("recommend_descs4.13.csv", index=True, header=False)
+    if all_descs is not None:
+        df_desc = pd.DataFrame(all_descs.cpu().numpy())
+        df_desc.to_csv("all_PCAdescs4.13.csv", index=True, header=False)
 
 def compute_L2dist(target_obj, space):
     dm = torch.cdist(target_obj, space)
     dist_min, distmin_idx = dm.min(dim=1)
     if dist_min.min() > 1e-4:
-        print("Warning: the distance between the recommended and the actual is too large, please check it!")
+        printc.red("Warning: the distance between the recommended and the actual is too large, please check it!")
     return distmin_idx.cpu().numpy()
 
 

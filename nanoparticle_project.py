@@ -183,7 +183,7 @@ def grid_add_elem_ratio(grid_init, p_index, set_ratio, sum_of2elems_ratio):
             grid_init[row, p_index[row][elem_idx]] = set_ratio[elem_idx]*0.1 * sum_of2elems_ratio
     return grid_init
     
-def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(5,5),(3,7), (1,9)], Ru_ratio=0.1):   #list:
+def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(4,6),(3,7),(1,9)], Ru_ratio=0.1):   #list:
     """
     Generates anonymous stoichiometric formulas for a set
     of n_components with specified coefficients
