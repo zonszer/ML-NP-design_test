@@ -61,7 +61,7 @@ def init_experiment_input(X, y, ref_point):
     X_dim = len(X[1])
     num_objectives = len(y[1])
     bounds = generate_bounds(X, y, X_dim, num_objectives, scale=(0, 1))
-    bounds = torch.FloatTensor(bounds)
+    bounds = torch.FloatTensor(bounds).cuda()
     ref_point = eval(ref_point) if isinstance(ref_point, type('')) else None
     X, y, ref_point_ = generate_initial_data(X=X, y=y, ref_point=ref_point)
     return X, y, bounds, ref_point_
@@ -186,8 +186,10 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
             print("New Samples--------------------------------------------")  # nsga-2
             print(train_x_qehvi[-bs:])
         # save_logfile.send(('result', 'true VS pred:', dict2))
-        df = pd.DataFrame(train_x_qehvi[-bs:].numpy())
-        df.to_csv("recommend_descs.csv", index=True, header=False)
+        df_desc = pd.DataFrame(all_descs.cpu().numpy())
+        df_desc.to_csv("all_PCAdescs4.13.csv", index=True, header=False)
+        df = pd.DataFrame(train_x_qehvi[-bs:].cpu().numpy())
+        df.to_csv("recommend_descs4.13.csv", index=True, header=False)
 
 
 # ================================   以下是单变量的部分   ===================================
