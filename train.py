@@ -148,7 +148,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
     N_BATCH = 1
     MC_SAMPLES = post_mc_samples
     verbose = True
-    df_space = pd.read_pickle('data/SearchSpace_3elems_Ru0.8.pkl')
+    df_space = pd.read_pickle('data/SearchSpace_3elems_Ru0.8.pkl')  #在这里改search space
     df_space.reset_index(drop=True, inplace=True)
 
     hvs_qehvi_all = []
@@ -172,7 +172,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
         # run N_BATCH rounds of BayesOpt after the initial random batch
         for iteration in range(1, N_BATCH + 1):
             fit_gpytorch_model(mll_qehvi)
-            new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)
+            new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
             new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
 
