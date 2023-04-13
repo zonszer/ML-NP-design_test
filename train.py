@@ -148,7 +148,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
     N_BATCH = 1
     MC_SAMPLES = post_mc_samples
     verbose = True
-    df_space = pd.read_pickle('data/SearchSpace_3elems.pkl')
+    df_space = pd.read_pickle('data/SearchSpace_3elems.pkl', index_col=0)
 
     hvs_qehvi_all = []
     X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
@@ -191,6 +191,8 @@ def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_sample
         df = pd.DataFrame(train_x_qehvi[-bs:].cpu().numpy())
         df.to_csv("recommend_descs4.13.csv", index=True, header=False)
 
+def compute_L2dist(target_obj, space):
+    
 
 # ================================   以下是单变量的部分   ===================================
 def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
