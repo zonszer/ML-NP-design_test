@@ -101,7 +101,13 @@ def filter_byMI(X, y, thr=0.0001):
     idx = np.nonzero(mi>thr)
     # printc.BLUE(idx)        #32
     return idx[0]
-      
+
+def filter_byIdx(idx_union):
+    def fn(X):
+        assert len(X.shape) == 2
+        return X[:, idx_union]
+    return fn
+
 def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
     #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
@@ -115,7 +121,8 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     idx2 = filter_byMI(X, y[:, 1])
     idx_union = np.unique(np.concatenate((idx1, idx2)))     # Find the union
     X = X[:, idx_union]
-    printc.blue(X.shape[1])
+    printc.blue('X desc shape:', X.shape[1])
+    filter_byIdx(X, idx_union)
 
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))      #TODO:random_state=seed still useless
     X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
