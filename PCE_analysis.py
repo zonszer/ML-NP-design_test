@@ -122,7 +122,6 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     idx_union = np.unique(np.concatenate((idx1, idx2)))     # Find the union
     X = X[:, idx_union]
     printc.blue('X desc shape:', X.shape[1])
-    filter_byIdx(X, idx_union)
 
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))      #TODO:random_state=seed still useless
     X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
@@ -131,7 +130,7 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     # y_norm =  std_scalery.fit_transform(y)
     # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
     fn_dict = {}
-    fn_dict['fn_input'] = fn_comb(kwargs=[std_scalerX.transform, pca.transform, std_scalerX_afpca.transform])
+    fn_dict['fn_input'] = fn_comb(kwargs=[filter_byIdx(idx_union), std_scalerX.transform, pca.transform, std_scalerX_afpca.transform])
 
     if 'OER' in dataset_name:
         assert y.shape[1] == 2 
