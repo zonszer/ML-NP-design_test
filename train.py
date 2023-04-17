@@ -194,7 +194,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
 
             torch.cuda.empty_cache()
             distmin_idx = compute_L2dist(recommend_descs, all_descs)
-            save_recommend_comp(distmin_idx, df_space, recommend_descs)
+            save_recommend_comp(distmin_idx, df_space, recommend_descs, all_descs)      #opt: all_descs
 
 def save_recommend_comp(idx, df_space, recommend_descs, all_descs=None):
     df_space.iloc[idx , :].to_csv("recommend_comp4.13.csv", index=True, header=True)

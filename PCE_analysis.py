@@ -97,6 +97,7 @@ def Add_extract_descriptors(df_pec, use_concentration):
 def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
        #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
+    #TODO
     std_scalerX_afpca = StandardScaler()
 
     X = np.array(X_compo)
