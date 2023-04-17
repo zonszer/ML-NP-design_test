@@ -95,7 +95,8 @@ def Add_extract_descriptors(df_pec, use_concentration):
     return desc
 
 
-def filter_byMI(X, y, thr=0.2):
+def filter_byMI(X, y, thr=0.0001):
+    mi = mutual_info_regression(X, y)   #[616, 132] VS [616, 1]
     mi = mutual_info_regression(X, y)   #[616, 132] VS [616, 1]
     mi /= np.max(mi)                    #还是norm3
     idx = np.count_nonzero(mi>thr)
@@ -104,14 +105,15 @@ def filter_byMI(X, y, thr=0.2):
       
 def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
-       #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
+    #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
     std_scalerX_afpca = StandardScaler()
 
     X = np.array(X_compo)
     #X_log = np.log(X.astype('float'))   
     y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))   
     # plot_Xy_relation(X, y)
-    filter_byMI(X, y, thr=0.1)
+    filter_byMI(X, y[0])
+    filter_byMI(X, y[1])
 
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))      #TODO:random_state=seed still useless
     X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
