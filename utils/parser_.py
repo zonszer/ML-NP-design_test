@@ -15,6 +15,7 @@ parser.add_argument('--ref_point', default= None, help='   ')
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')    
 parser.add_argument('--data_path', default='data/OER-Summary-LZ.xlsx', help='  ')
+parser.add_argument('--data_search_space', default='data/SearchSpace_3elems_Ru0.8.pkl', help='  ')
 parser.add_argument('--model', '--y_col_name', default='Mass-activity-at-1.53V+slope-relative-to-Ru', #Mass activity at 1.53V
                     help='OPT1 for PCE: Highest-Ratio-over-Control  OR  Average-Ratio-over-Control /n \
                           OPT2.1 for OER: {Mass-activity-at-1.53V} /n \

@@ -143,12 +143,14 @@ class SearchSpace_Sampler(NormalMCSampler):
         return self.fn_input(desc)
 
 
-def MOBO_one_batch(X_train, y_train, num_restarts, ref_point, bs, post_mc_samples, save_file_instance, fn_dict):
+def MOBO_one_batch(X_train, y_train, num_restarts,
+                   ref_point, bs, post_mc_samples, save_file_instance, fn_dict,
+                   df_space):
     N_TRIALS = 1
     N_BATCH = 1
     MC_SAMPLES = post_mc_samples
     verbose = True
-    df_space = pd.read_pickle('data/SearchSpace_3elems_Ru0.8.pkl')  #在这里改search space
+    df_space = pd.read_pickle(df_space)  #在这里改search space
     df_space.reset_index(drop=True, inplace=True)
 
     hvs_qehvi_all = []

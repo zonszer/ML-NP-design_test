@@ -9,6 +9,7 @@ import time
 from glob import glob
 import csv
 import torch
+from typing import List
 
 def write_dict_to_csv(data: dict, file_path):
     with open(file_path, 'a', newline='') as csvfile:
@@ -35,10 +36,10 @@ def dict_add(dictionary:dict, key, value, acc='list'):
             assert False, 'only list or set'
     dictionary[key] += [value]
 
-def fn_comb(kwargs):
+def fn_comb(kwargs: List):
     def comb(X):
-        for i in kwargs:
-            X = i.transform(X)
+        for fn in kwargs:
+            X = fn(X)
         return X
     return comb
 

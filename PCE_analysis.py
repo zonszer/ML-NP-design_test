@@ -95,9 +95,9 @@ def Add_extract_descriptors(df_pec, use_concentration):
 
       
 def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
-    std_scalerX = MinMaxScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
+    std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
        #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
-    std_scalerX_afpca = MinMaxScaler()
+    std_scalerX_afpca = StandardScaler()
 
     X = np.array(X_compo)
     #X_log = np.log(X.astype('float'))   
@@ -111,7 +111,7 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     # y_norm =  std_scalery.fit_transform(y)
     # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
     fn_dict = {}
-    fn_dict['fn_input'] = fn_comb([std_scalerX, pca, std_scalerX_afpca])
+    fn_dict['fn_input'] = fn_comb(kwargs=[std_scalerX.transform, pca.transform, std_scalerX_afpca.transform])
 
     if 'OER' in dataset_name:
         assert y.shape[1] == 2 
@@ -175,7 +175,8 @@ def Main(args):
             X_train, y_train = X_train[1:, :], y_train[1:, :]
 
         MOBO_one_batch(X_train, y_train, args.num_restarts, 
-                       args.ref_point, args.bs, args.num_mc_samples, save_file_instance, fn_dict)
+                       args.ref_point, args.bs, args.num_mc_samples, save_file_instance, fn_dict,
+                       df_space=args.data_search_space)
 
         # log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X_train, X_test)
