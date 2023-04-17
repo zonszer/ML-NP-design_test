@@ -130,7 +130,8 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     # y_norm =  std_scalery.fit_transform(y)
     # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
     fn_dict = {}
-    fn_dict['fn_input'] = fn_comb(kwargs=[filter_byIdx(idx_union), std_scalerX.transform, pca.transform, std_scalerX_afpca.transform])
+    fn_dict['fn_input'] = fn_comb(kwargs=[filter_byIdx(idx_union), std_scalerX.transform,
+                                          pca.transform, std_scalerX_afpca.transform])
 
     if 'OER' in dataset_name:
         assert y.shape[1] == 2 

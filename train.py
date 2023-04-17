@@ -60,7 +60,7 @@ def generate_initial_data(X, y, ref_point):
 def init_experiment_input(X, y, ref_point):
     X_dim = len(X[1])
     num_objectives = len(y[1])
-    bounds = generate_bounds(X, y, X_dim, num_objectives, scale=(0, 1))
+    bounds = generate_bounds(X, y, X_dim, num_objectives, scale=(-1, 1))
     bounds = torch.FloatTensor(bounds).cuda()
     ref_point = eval(ref_point) if isinstance(ref_point, type('')) else None
     X, y, ref_point_ = generate_initial_data(X=X, y=y, ref_point=ref_point)
@@ -84,7 +84,7 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
         choices=all_descs,
         num_restarts=num_restarts,
         raw_samples=raw_samples,
-        options={"batch_limit": 5, "maxiter": 200, "nonnegative": True},
+        options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
         sequential=False,
     )
     new_x = unnormalize(candidates.detach(), bounds=bounds)
