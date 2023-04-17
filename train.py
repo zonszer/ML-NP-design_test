@@ -67,7 +67,8 @@ def init_experiment_input(X, y, ref_point):
     return X, y, bounds, ref_point_
 
 
-def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, bs, bounds, raw_samples, ref_point_, all_descs ):
+def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, bs, bounds, raw_samples,
+                                       ref_point_, all_descs ):
     """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
     partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
     acq_func = qExpectedHypervolumeImprovement(
@@ -79,7 +80,6 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
     )
     candidates, _ = optimize_acqf_discrete(
         acq_function=acq_func,
-        bounds=bounds,
         q=bs,
         choices=all_descs,
         num_restarts=num_restarts,
@@ -87,7 +87,8 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
         options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
         sequential=False,
     )
-    new_x = unnormalize(candidates.detach(), bounds=bounds)
+    # new_x = unnormalize(candidates.detach())     #TODO: maybe here problem?
+    new_x = candidates.detach()
     # new_obj = torch.FloatTensor([[  -6.7064,   -5.8886],        #？为啥不用根据new_x去计算new_obj # not used for now:date4.7
     #     [ -51.7423,   -6.8102],
     #     [ -38.3063,   -6.8469],
