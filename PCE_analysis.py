@@ -114,7 +114,8 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
     idx1 = filter_byMI(X, y[:, 0])
     idx2 = filter_byMI(X, y[:, 1])
     idx_union = np.unique(np.concatenate((idx1, idx2)))     # Find the union
-    X = X[:, idx_union]; y = y[:, idx_union]
+    X = X[:, idx_union]
+    printc.blue(X.shape[1])
 
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))      #TODO:random_state=seed still useless
     X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
