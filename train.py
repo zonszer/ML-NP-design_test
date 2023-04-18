@@ -67,8 +67,9 @@ def init_experiment_input(X, y, ref_point):
     return X, y, bounds, ref_point_
 
 
-def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, bs, bounds, raw_samples,
-                                       ref_point_, all_descs ):
+def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
+                                       q_num, bounds, raw_samples,
+                                       ref_point_, all_descs, max_batch_size):
     """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
     partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
     acq_func = qExpectedHypervolumeImprovement(
@@ -76,16 +77,17 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
         ref_point=ref_point_.tolist(),
         partitioning=partitioning,
         sampler=sampler,
-        # maximize=True,
     )
     candidates, _ = optimize_acqf_discrete(
         acq_function=acq_func,
-        q=bs,
+        q=q_num,
         choices=all_descs,
-        num_restarts=num_restarts,
-        raw_samples=raw_samples,
-        options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
-        sequential=False,
+        max_batch_size=max_batch_size,
+        unique=False,                   #TODO: if train changed to True
+        # num_restarts=num_restarts,
+        # raw_samples=raw_samples,
+        # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
+        # sequential=False,
     )
     # new_x = unnormalize(candidates.detach())     #TODO: maybe here problem?
     new_x = candidates.detach()
@@ -105,7 +107,7 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
 
 def initialize_model(train_x, train_obj):
     # define models for objective and constraint
-    model = SingleTaskGP(train_x, train_obj, outcome_transform=Standardize(m=train_obj.shape[-1]))
+    model = SingleTaskGP(train_x, train_obj, outcome_transform=Standardize(m=train_obj.shape[-1]))  #TODO: maybe occur bug in outcome_transform
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     return mll, model
 
@@ -145,7 +147,8 @@ class SearchSpace_Sampler(NormalMCSampler):
 
 
 def MOBO_one_batch(X_train, y_train, num_restarts,
-                   ref_point, bs, post_mc_samples, save_file_instance, fn_dict,
+                   ref_point, q_num, bs, post_mc_samples, 
+                   save_file_instance, fn_dict,
                    df_space):
     N_TRIALS = 1
     N_BATCH = 1
@@ -180,15 +183,16 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
             new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
 
             new_x_qehvi = optimize_qehvi_and_get_observation(
-                model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler,
-                num_restarts=num_restarts, bs=bs, bounds=bounds, raw_samples=MC_SAMPLES,
-                ref_point_=ref_point, all_descs=all_descs)
+                model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
+                q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
+                ref_point_=ref_point, all_descs=all_descs, max_batch_size=bs
+            )
 
             # update training points
             train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
             # train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj_qehvi])         #not used for now:date4.7
             print("New Samples--------------------------------------------")  # nsga-2
-            recommend_descs = train_x_qehvi[-bs:]
+            recommend_descs = train_x_qehvi[-q_num:]
             # print(recommend_descs)
 
             # save_logfile.send(('result', 'true VS pred:', dict2))
