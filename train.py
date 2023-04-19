@@ -31,6 +31,7 @@ from botorch.sampling.normal import NormalMCSampler
 from botorch.utils.multi_objective.box_decompositions.dominated import (
     DominatedPartitioning,
 )
+
 tkwargs = {
     # "dtype": torch.double,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
@@ -72,7 +73,8 @@ def init_experiment_input(X, y, ref_point):
 
 def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
                                        q_num, bounds, raw_samples,
-                                       ref_point_, all_descs, max_batch_size):
+                                       ref_point_, all_descs, max_batch_size, 
+                                       validate=False, all_y=None):
     """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
     partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
     acq_func = qExpectedHypervolumeImprovement(
@@ -92,8 +94,13 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
         # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
         # sequential=False,
     )
-    # new_x = unnormalize(candidates.detach())     #TODO: maybe here problem?
+    # new_x = unnormalize(candidates.detach())     #TODO: organize
     new_x = candidates.detach()
+    # new_obj = new_obj_true + torch.randn_like(new_obj_true) * NOISE_SE
+    if validate:
+        new_obj = generate_new_obj(new_x, all_descs, all_y)
+    else:
+        new_obj = None
     # new_obj = torch.FloatTensor([[  -6.7064,   -5.8886],        #？为啥不用根据new_x去计算new_obj # not used for now:date4.7
     #     [ -51.7423,   -6.8102],
     #     [ -38.3063,   -6.8469],
@@ -105,7 +112,11 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
     #     [ -17.1416,  -10.4511],
     #     [  -7.0856,   -5.5974]])        #.shape = [10,2]
 
-    return new_x
+    return new_x, new_obj
+
+def generate_new_obj(new_x, all_descs, all_y):
+    distmin_idx = compute_L2dist(new_x, all_descs)
+    return all_y[distmin_idx]
 
 
 def initialize_model(train_x, train_obj):
@@ -149,16 +160,20 @@ class SearchSpace_Sampler(NormalMCSampler):
         return self.fn_input(desc)
 
 
+def split_for_val(X, y, ini_size=0.2):
+    data_num = X.shape[0]
+    ini_num = int(data_num * ini_size)
+    random_elements = np.random.choice(range(data_num), ini_num, replace=False)
+    return X[:, random_elements], y[:, random_elements]
+
 def MOBO_batches(X_train, y_train, num_restarts,
                 ref_point, q_num, bs, post_mc_samples, 
                 save_file_instance, fn_dict,
-                df_space):
+                df_space=None):
     N_TRIALS = 1
     N_BATCH = 10
     MC_SAMPLES = post_mc_samples
     verbose = True
-    df_space = pd.read_pickle(df_space)  
-    df_space.reset_index(drop=True, inplace=True)
 
     hvs_qehvi_all = []
     X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
@@ -168,7 +183,8 @@ def MOBO_batches(X_train, y_train, num_restarts,
     for trial in range(1, N_TRIALS + 1):
         print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
         hvs_qehvi = []
-        train_x_qehvi, train_obj_qehvi = X, y
+        # split data for valideation
+        train_x_qehvi, train_obj_qehvi = split_for_val(X, y, ini_size=0.2)
         mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
 
         pareto_mask = is_non_dominated(train_obj_qehvi)
@@ -181,35 +197,29 @@ def MOBO_batches(X_train, y_train, num_restarts,
         for iteration in range(1, N_BATCH + 1):
             t0 = time.monotonic()
             fit_gpytorch_model(mll_qehvi)
-            new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
-            all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
             new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
 
-            new_x, new_obj, new_obj_true = optimize_qehvi_and_get_observation(
+            new_x, new_obj = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
                 q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
-                ref_point_=ref_point, all_descs=all_descs, max_batch_size=bs
+                ref_point_=ref_point, all_descs=X, max_batch_size=bs,
+                all_y=y, validate=True
             )
 
             # update training points
             train_x_qehvi = torch.cat([train_x_qehvi, new_x])
             train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj])
-            train_obj_true_qehvi = torch.cat([train_obj_qehvi, new_obj_true])
+            # train_obj_true_qehvi = torch.cat([train_obj_qehvi, new_obj_true])
             
             print("New Samples--------------------------------------------")  
             recommend_descs = train_x_qehvi[-q_num:]
             print(recommend_descs)
             # update progress
-            for hvs_list, train_obj in zip((hvs_qehvi),
-                (
-                    train_obj_true_qehvi,
-                ),
-            ):
-                # compute hypervolume
-                pareto_mask = is_non_dominated(train_obj)
-                pareto_y = train_obj_qehvi[pareto_mask]
-                volume = hv.compute(pareto_y)
-                hvs_qehvi.append(volume)
+            ## compute hypervolume
+            pareto_mask = is_non_dominated(train_obj_qehvi)
+            pareto_y = train_obj_qehvi[pareto_mask]
+            volume = hv.compute(pareto_y)
+            hvs_qehvi.append(volume)
 
             mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
 
@@ -218,7 +228,8 @@ def MOBO_batches(X_train, y_train, num_restarts,
             if verbose:
                 print(
                     f"\nBatch {iteration:>2}: Hypervolume (random, qNParEGO, qEHVI, qNEHVI) = "
-                    f"({hvs_random[-1]:>4.2f}, {hvs_qparego[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}, {hvs_qnehvi[-1]:>4.2f}), "
+                    # f"({hvs_random[-1]:>4.2f}, {hvs_qparego[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}, {hvs_qnehvi[-1]:>4.2f}), "
+                    f"({hvs_qehvi[-1]:>4.2f})"
                     f"time = {t1-t0:>4.2f}.",
                     end="",
                 )
@@ -262,7 +273,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
             new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
 
-            new_x_qehvi = optimize_qehvi_and_get_observation(
+            new_x_qehvi, _ = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
                 q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
                 ref_point_=ref_point, all_descs=all_descs, max_batch_size=bs
