@@ -11,7 +11,7 @@ import pandas as pd
 import time
 
 import torch
-from botorch import fit_gpytorch_model
+from botorch import fit_gpytorch_mll
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement
 from botorch.sampling import SobolQMCNormalSampler
 from botorch.utils.multi_objective.pareto import is_non_dominated
@@ -33,6 +33,8 @@ from botorch.utils.multi_objective.box_decompositions.dominated import (
 )
 from botorch.exceptions import BadInitialCandidatesWarning
 import warnings
+from botorch.utils.multi_objective.scalarization import get_chebyshev_scalarization
+from botorch.acquisition.objective import GenericMCObjective
 
 tkwargs = {
     # "dtype": torch.double,
@@ -118,6 +120,42 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
 
     return new_x, new_obj
 
+def optimize_qnparego_and_get_observation(model, train_x, train_obj, sampler, num_restarts, 
+                                       q_num, bounds, raw_samples,
+                                       ref_point_, all_descs, max_batch_size, 
+                                       validate=False, all_y=None):
+    """Samples a set of random weights for each candidate in the batch, performs sequential greedy optimization
+    of the qNParEGO acquisition function, and returns a new candidate and observation."""
+    with torch.no_grad():
+        pred = model.posterior(train_x).mean
+    acq_func_list = []
+    for _ in range(max_batch_size):
+        weights = sample_simplex(q_num, **tkwargs).squeeze()
+        objective = GenericMCObjective(
+            get_chebyshev_scalarization(weights=weights, Y=pred)
+        )
+        acq_func = qNoisyExpectedImprovement(  # pyre-ignore: [28]
+            model=model,
+            objective=objective,
+            X_baseline=train_x,
+            sampler=sampler,
+            prune_baseline=True,
+        )
+        acq_func_list.append(acq_func)
+    # optimize
+    candidates, _ = optimize_acqf_list(
+        acq_function_list=acq_func_list,
+        bounds=standard_bounds,
+        num_restarts=num_restarts,
+        raw_samples=raw_samples,  # used for intialization heuristic
+        options={"batch_limit": 5, "maxiter": 200},
+    )
+    # observe new values
+    new_x = unnormalize(candidates.detach(), bounds=problem.bounds)
+    new_obj_true = problem(new_x)
+    return new_x, new_obj
+
+
 def generate_new_obj(new_x, all_descs, all_y):
     distmin_idx = compute_L2dist(new_x, all_descs)
     return all_y[distmin_idx], distmin_idx
@@ -186,27 +224,42 @@ def MOBO_batches(X_train, y_train, num_restarts,
     # average over multiple trials
     for trial in range(1, N_TRIALS + 1):
         print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
-        hvs_qehvi = []
+        hvs_qehvi, hvs_random = [], []
+        
         # split data for valideation
         train_x_qehvi, train_obj_qehvi = split_for_val(X, y, ini_size=0.2)
+        train_x_qparego, train_obj_x_qparego = train_x_qehvi, train_obj_qehvi
+
         mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
+        mll_qparego, model_qparego = initialize_model(train_x_qehvi, train_obj_qehvi)
 
         pareto_mask = is_non_dominated(train_obj_qehvi)
         pareto_y = train_obj_qehvi[pareto_mask]
         volume = hv.compute(pareto_y)
         hvs_qehvi.append(volume)
+        hvs_random.append(volume)
         print("init Hypervolume is ", volume)
         # run N_BATCH rounds of BayesOpt after the initial random batch
         for iteration in range(1, N_BATCH + 1):
             t0 = time.monotonic()
-            fit_gpytorch_model(mll_qehvi)
-            new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
+
+            fit_gpytorch_mll(mll_qehvi)
+            fit_gpytorch_mll(mll_qparego)
+
+            new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
+            new_sampler_random = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
 
             new_x, new_obj = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
                 q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
                 ref_point_=ref_point, all_descs=X, max_batch_size=bs,
                 all_y=y, validate=True
+            )
+            new_x, new_obj = optimize_qnparego_and_get_observation(
+                model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler_random, num_restarts=num_restarts, 
+                q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
+                ref_point_=ref_point, all_descs=X, max_batch_size=bs,
+                all_y=y, validate=True, train_x=train_x_qparego
             )
 
             # update training points
@@ -274,7 +327,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
             fit_gpytorch_model(mll_qehvi)
             new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
-            new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
+            new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
 
             new_x_qehvi, _ = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
