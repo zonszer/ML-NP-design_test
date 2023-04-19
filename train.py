@@ -28,7 +28,9 @@ from botorch.models.transforms.outcome import Standardize
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 from botorch.utils.transforms import unnormalize
 from botorch.sampling.normal import NormalMCSampler
-
+from botorch.utils.multi_objective.box_decompositions.dominated import (
+    DominatedPartitioning,
+)
 tkwargs = {
     # "dtype": torch.double,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
@@ -171,7 +173,6 @@ def MOBO_batches(X_train, y_train, num_restarts,
 
         pareto_mask = is_non_dominated(train_obj_qehvi)
         pareto_y = train_obj_qehvi[pareto_mask]
-
         volume = hv.compute(pareto_y)
         hvs_qehvi.append(volume)
 
@@ -193,9 +194,9 @@ def MOBO_batches(X_train, y_train, num_restarts,
             # update training points
             train_x_qehvi = torch.cat([train_x_qehvi, new_x])
             train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj])
-            train_obj_true = torch.cat([train_obj_qehvi, new_obj_true])
+            train_obj_true_qehvi = torch.cat([train_obj_qehvi, new_obj_true])
             
-            print("New Samples--------------------------------------------")  # nsga-2
+            print("New Samples--------------------------------------------")  
             recommend_descs = train_x_qehvi[-q_num:]
             print(recommend_descs)
             # update progress
@@ -205,9 +206,11 @@ def MOBO_batches(X_train, y_train, num_restarts,
                 ),
             ):
                 # compute hypervolume
-                bd = DominatedPartitioning(ref_point=problem.ref_point, Y=train_obj)
-                volume = bd.compute_hypervolume().item()
-                hvs_list.append(volume)
+                pareto_mask = is_non_dominated(train_obj)
+                pareto_y = train_obj_qehvi[pareto_mask]
+                volume = hv.compute(pareto_y)
+                hvs_qehvi.append(volume)
+
             mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
 
             t1 = time.monotonic()
