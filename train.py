@@ -31,12 +31,15 @@ from botorch.sampling.normal import NormalMCSampler
 from botorch.utils.multi_objective.box_decompositions.dominated import (
     DominatedPartitioning,
 )
+from botorch.exceptions import BadInitialCandidatesWarning
+import warnings
 
 tkwargs = {
     # "dtype": torch.double,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 }
-
+warnings.filterwarnings("ignore", category=BadInitialCandidatesWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
     bounds = np.zeros((2, dim_X))
@@ -97,8 +100,9 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
     # new_x = unnormalize(candidates.detach())     #TODO: organize
     new_x = candidates.detach()
     # new_obj = new_obj_true + torch.randn_like(new_obj_true) * NOISE_SE
-    if validate:
-        new_obj = generate_new_obj(new_x, all_descs, all_y)
+    if validate and all_y is not None:
+        new_obj, new_obj_idx = generate_new_obj(new_x, all_descs, all_y)
+        print('idx are:', new_obj_idx)
     else:
         new_obj = None
     # new_obj = torch.FloatTensor([[  -6.7064,   -5.8886],        #？为啥不用根据new_x去计算new_obj # not used for now:date4.7
@@ -116,7 +120,7 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
 
 def generate_new_obj(new_x, all_descs, all_y):
     distmin_idx = compute_L2dist(new_x, all_descs)
-    return all_y[distmin_idx]
+    return all_y[distmin_idx], distmin_idx
 
 
 def initialize_model(train_x, train_obj):
@@ -164,7 +168,7 @@ def split_for_val(X, y, ini_size=0.2):
     data_num = X.shape[0]
     ini_num = int(data_num * ini_size)
     random_elements = np.random.choice(range(data_num), ini_num, replace=False)
-    return X[:, random_elements], y[:, random_elements]
+    return X[torch.tensor(random_elements).cuda(), :], y[torch.tensor(random_elements).cuda(), :]
 
 def MOBO_batches(X_train, y_train, num_restarts,
                 ref_point, q_num, bs, post_mc_samples, 
@@ -191,8 +195,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
         pareto_y = train_obj_qehvi[pareto_mask]
         volume = hv.compute(pareto_y)
         hvs_qehvi.append(volume)
-
-        print("Hypervolume is ", volume)
+        print("init Hypervolume is ", volume)
         # run N_BATCH rounds of BayesOpt after the initial random batch
         for iteration in range(1, N_BATCH + 1):
             t0 = time.monotonic()
@@ -211,9 +214,9 @@ def MOBO_batches(X_train, y_train, num_restarts,
             train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj])
             # train_obj_true_qehvi = torch.cat([train_obj_qehvi, new_obj_true])
             
-            print("New Samples--------------------------------------------")  
+            print("--------------------------------------------")
             recommend_descs = train_x_qehvi[-q_num:]
-            print(recommend_descs)
+            # print(recommend_descs)
             # update progress
             ## compute hypervolume
             pareto_mask = is_non_dominated(train_obj_qehvi)
@@ -230,7 +233,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
                     f"\nBatch {iteration:>2}: Hypervolume (random, qNParEGO, qEHVI, qNEHVI) = "
                     # f"({hvs_random[-1]:>4.2f}, {hvs_qparego[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}, {hvs_qnehvi[-1]:>4.2f}), "
                     f"({hvs_qehvi[-1]:>4.2f})"
-                    f"time = {t1-t0:>4.2f}.",
+                    f" time = {t1-t0:>4.2f}.",
                     end="",
                 )
             else:

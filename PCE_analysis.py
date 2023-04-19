@@ -194,10 +194,10 @@ def Main(args):
         if args.only_use_elem2:
             X_train, y_train = X_train[1:, :], y_train[1:, :]
 
-        MOBO_one_batch(X_train, y_train, args.num_restarts, 
-                       args.ref_point, args.q_num, args.bs, args.mc_samples_num, 
-                       save_file_instance, fn_dict,
-                       df_space=args.data_search_space)
+        # MOBO_one_batch(X_train, y_train, args.num_restarts,
+        #                args.ref_point, args.q_num, args.bs, args.mc_samples_num,
+        #                save_file_instance, fn_dict,
+        #                df_space=args.data_search_space)
         
         MOBO_batches(X_train, y_train, args.num_restarts, 
                     args.ref_point, args.q_num, args.bs, args.mc_samples_num, 
