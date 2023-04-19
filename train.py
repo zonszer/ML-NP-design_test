@@ -198,34 +198,29 @@ def MOBO_batches(X_train, y_train, num_restarts,
             print("New Samples--------------------------------------------")  # nsga-2
             recommend_descs = train_x_qehvi[-q_num:]
             print(recommend_descs)
-    # update progress
-    for hvs_list, train_obj in zip(
-        (hvs_random, hvs_qparego, hvs_qehvi, hvs_qnehvi),
-        (
-            train_obj_true_random,
-            train_obj_true_qparego,
-            train_obj_true_qehvi,
-            train_obj_true_qnehvi,
-        ),
-    ):
-        # compute hypervolume
-        bd = DominatedPartitioning(ref_point=problem.ref_point, Y=train_obj)
-        volume = bd.compute_hypervolume().item()
-        hvs_list.append(volume)
-    mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
-    mll_qnehvi, model_qnehvi = initialize_model(train_x_qnehvi, train_obj_qnehvi)
+            # update progress
+            for hvs_list, train_obj in zip((hvs_qehvi),
+                (
+                    train_obj_true_qehvi,
+                ),
+            ):
+                # compute hypervolume
+                bd = DominatedPartitioning(ref_point=problem.ref_point, Y=train_obj)
+                volume = bd.compute_hypervolume().item()
+                hvs_list.append(volume)
+            mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
 
-    t1 = time.monotonic()
+            t1 = time.monotonic()
 
-    if verbose:
-        print(
-            f"\nBatch {iteration:>2}: Hypervolume (random, qNParEGO, qEHVI, qNEHVI) = "
-            f"({hvs_random[-1]:>4.2f}, {hvs_qparego[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}, {hvs_qnehvi[-1]:>4.2f}), "
-            f"time = {t1-t0:>4.2f}.",
-            end="",
-        )
-    else:
-        print(".", end="")
+            if verbose:
+                print(
+                    f"\nBatch {iteration:>2}: Hypervolume (random, qNParEGO, qEHVI, qNEHVI) = "
+                    f"({hvs_random[-1]:>4.2f}, {hvs_qparego[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}, {hvs_qnehvi[-1]:>4.2f}), "
+                    f"time = {t1-t0:>4.2f}.",
+                    end="",
+                )
+            else:
+                print(".", end="")
 
 
 def MOBO_one_batch(X_train, y_train, num_restarts,
