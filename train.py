@@ -35,6 +35,7 @@ from botorch.exceptions import BadInitialCandidatesWarning
 import warnings
 from botorch.utils.multi_objective.scalarization import get_chebyshev_scalarization
 from botorch.acquisition.objective import GenericMCObjective
+from botorch.utils.sampling import draw_sobol_samples
 
 tkwargs = {
     # "dtype": torch.double,
@@ -103,7 +104,8 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
     new_x = candidates.detach()
     # new_obj = new_obj_true + torch.randn_like(new_obj_true) * NOISE_SE
     if validate and all_y is not None:
-        new_obj, new_obj_idx = generate_new_obj(new_x, all_descs, all_y)
+        new_obj, new_obj_idx = get_idx_and_corObj(new_x, all_descs, all_y=all_y)
+        new_obj = new_obj['all_y']
         print('idx are:', new_obj_idx)
     else:
         new_obj = None
@@ -156,9 +158,12 @@ def optimize_qnparego_and_get_observation(model, train_x, train_obj, sampler, nu
     return new_x, new_obj
 
 
-def generate_new_obj(new_x, all_descs, all_y):
+def get_idx_and_corObj(new_x, all_descs, **kwargs):
+    '''generate new_obj from all_y and idx of new_x'''
     distmin_idx = compute_L2dist(new_x, all_descs)
-    return all_y[distmin_idx], distmin_idx
+    for key in kwargs.keys():
+        kwargs[key] = kwargs[key][distmin_idx]
+    return kwargs, distmin_idx
 
 
 def initialize_model(train_x, train_obj):
@@ -208,6 +213,25 @@ def split_for_val(X, y, ini_size=0.2):
     random_elements = np.random.choice(range(data_num), ini_num, replace=False)
     return X[torch.tensor(random_elements).cuda(), :], y[torch.tensor(random_elements).cuda(), :]
 
+def optimize_and_get_random_observation(X, y, X_now, n):
+    _, X_now_idx = get_idx_and_corObj(X_now, X)
+    mask = np.ones(X.shape, dtype=bool); mask_y = np.ones(y.shape, dtype=bool)
+    mask[X_now_idx] = False; mask_y[X_now_idx] = False
+    sliced_tensor = X[mask]
+    return generate_sobol_data(X[mask], y[mask_y], n=n)
+
+def generate_sobol_data(X_r, y_r, n):
+    '''generate random data of new_x'''
+    data_num = X_r.shape[0]
+    random_elements = np.random.choice(range(data_num), n, replace=False)
+    return X_r[torch.tensor(random_elements).cuda(), :], y_r[torch.tensor(random_elements).cuda(), :]
+
+def compute_hv(hv, train_obj_qehvi):
+    pareto_mask = is_non_dominated(train_obj_qehvi)
+    pareto_y = train_obj_qehvi[pareto_mask]
+    volume = hv.compute(pareto_y)
+    return volume
+
 def MOBO_batches(X_train, y_train, num_restarts,
                 ref_point, q_num, bs, post_mc_samples, 
                 save_file_instance, fn_dict,
@@ -228,26 +252,25 @@ def MOBO_batches(X_train, y_train, num_restarts,
         
         # split data for valideation
         train_x_qehvi, train_obj_qehvi = split_for_val(X, y, ini_size=0.2)
-        train_x_qparego, train_obj_x_qparego = train_x_qehvi, train_obj_qehvi
+        # train_x_qparego, train_obj_x_qparego = train_x_qehvi, train_obj_qehvi
+        train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
 
         mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
-        mll_qparego, model_qparego = initialize_model(train_x_qehvi, train_obj_qehvi)
+        # mll_qparego, model_qparego = initialize_model(train_x_qehvi, train_obj_qehvi)
 
-        pareto_mask = is_non_dominated(train_obj_qehvi)
-        pareto_y = train_obj_qehvi[pareto_mask]
-        volume = hv.compute(pareto_y)
-        hvs_qehvi.append(volume)
-        hvs_random.append(volume)
-        print("init Hypervolume is ", volume)
+        init_volume = compute_hv(hv, train_obj_qehvi)
+        hvs_qehvi.append(init_volume)
+        hvs_random.append(init_volume)
+        print("init Hypervolume is ", init_volume)
         # run N_BATCH rounds of BayesOpt after the initial random batch
         for iteration in range(1, N_BATCH + 1):
             t0 = time.monotonic()
 
             fit_gpytorch_mll(mll_qehvi)
-            fit_gpytorch_mll(mll_qparego)
+            # fit_gpytorch_mll(mll_qparego)
 
             new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
-            new_sampler_random = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
+            # new_sampler_qnparego = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
 
             new_x, new_obj = optimize_qehvi_and_get_observation(
                 model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
@@ -255,27 +278,28 @@ def MOBO_batches(X_train, y_train, num_restarts,
                 ref_point_=ref_point, all_descs=X, max_batch_size=bs,
                 all_y=y, validate=True
             )
-            new_x, new_obj = optimize_qnparego_and_get_observation(
-                model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler_random, num_restarts=num_restarts, 
-                q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
-                ref_point_=ref_point, all_descs=X, max_batch_size=bs,
-                all_y=y, validate=True, train_x=train_x_qparego
-            )
+            #new_x, new_obj = optimize_qnparego_and_get_observation(
+            #    model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler_random, num_restarts=num_restarts, 
+            #    q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
+            #    ref_point_=ref_point, all_descs=X, max_batch_size=bs,
+            #    all_y=y, validate=True, train_x=train_x_qparego
+            #)
+            new_x_random, new_obj_random = optimize_and_get_random_observation(X, y, X_now=train_x_random,
+                                                                                n=q_num)
 
             # update training points
             train_x_qehvi = torch.cat([train_x_qehvi, new_x])
             train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj])
-            # train_obj_true_qehvi = torch.cat([train_obj_qehvi, new_obj_true])
+            train_x_random = torch.cat([train_x_random, new_x_random])
+            train_obj_random = torch.cat([train_obj_random, new_obj_random])
             
             print("--------------------------------------------")
             recommend_descs = train_x_qehvi[-q_num:]
             # print(recommend_descs)
             # update progress
             ## compute hypervolume
-            pareto_mask = is_non_dominated(train_obj_qehvi)
-            pareto_y = train_obj_qehvi[pareto_mask]
-            volume = hv.compute(pareto_y)
-            hvs_qehvi.append(volume)
+            hvs_qehvi.append(compute_hv(hv, train_obj_qehvi))
+            hvs_random.append(compute_hv(hv, train_obj_random))
 
             mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
 
@@ -284,7 +308,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
             if verbose:
                 print(
                     f"\nBatch {iteration:>2}: Hypervolume (random, qNParEGO, qEHVI, qNEHVI) = "
-                    # f"({hvs_random[-1]:>4.2f}, {hvs_qparego[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}, {hvs_qnehvi[-1]:>4.2f}), "
+                    f"({hvs_random[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f} "
                     f"({hvs_qehvi[-1]:>4.2f})"
                     f" time = {t1-t0:>4.2f}.",
                     end="",
@@ -317,14 +341,13 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
 
         pareto_mask = is_non_dominated(train_obj_qehvi)
         pareto_y = train_obj_qehvi[pareto_mask]
-
         volume = hv.compute(pareto_y)
         hvs_qehvi.append(volume)
 
         print("Hypervolume is ", volume)
         # run N_BATCH rounds of BayesOpt after the initial random batch
         for iteration in range(1, N_BATCH + 1):
-            fit_gpytorch_model(mll_qehvi)
+            fit_gpytorch_mll(mll_qehvi)
             new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
             new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
