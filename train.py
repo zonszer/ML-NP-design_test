@@ -8,6 +8,7 @@ from plot import plot_CrossVal_avg
 from sklearn.model_selection import train_test_split
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
 import pandas as pd
+import time
 
 import torch
 from botorch import fit_gpytorch_model
@@ -146,6 +147,87 @@ class SearchSpace_Sampler(NormalMCSampler):
         return self.fn_input(desc)
 
 
+def MOBO_batches(X_train, y_train, num_restarts,
+                ref_point, q_num, bs, post_mc_samples, 
+                save_file_instance, fn_dict,
+                df_space):
+    N_TRIALS = 1
+    N_BATCH = 10
+    MC_SAMPLES = post_mc_samples
+    verbose = True
+    df_space = pd.read_pickle(df_space)  
+    df_space.reset_index(drop=True, inplace=True)
+
+    hvs_qehvi_all = []
+    X, y, bounds, ref_point = init_experiment_input(X=X_train, y=y_train, ref_point=ref_point)
+    hv = Hypervolume(ref_point=ref_point)
+
+    # average over multiple trials
+    for trial in range(1, N_TRIALS + 1):
+        print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
+        hvs_qehvi = []
+        train_x_qehvi, train_obj_qehvi = X, y
+        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
+
+        pareto_mask = is_non_dominated(train_obj_qehvi)
+        pareto_y = train_obj_qehvi[pareto_mask]
+
+        volume = hv.compute(pareto_y)
+        hvs_qehvi.append(volume)
+
+        print("Hypervolume is ", volume)
+        # run N_BATCH rounds of BayesOpt after the initial random batch
+        for iteration in range(1, N_BATCH + 1):
+            t0 = time.monotonic()
+            fit_gpytorch_model(mll_qehvi)
+            new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
+            all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
+            new_sampler = SobolQMCNormalSampler(MC_SAMPLES)
+
+            new_x, new_obj, new_obj_true = optimize_qehvi_and_get_observation(
+                model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
+                q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
+                ref_point_=ref_point, all_descs=all_descs, max_batch_size=bs
+            )
+
+            # update training points
+            train_x_qehvi = torch.cat([train_x_qehvi, new_x])
+            train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj])
+            train_obj_true = torch.cat([train_obj_qehvi, new_obj_true])
+            
+            print("New Samples--------------------------------------------")  # nsga-2
+            recommend_descs = train_x_qehvi[-q_num:]
+            print(recommend_descs)
+    # update progress
+    for hvs_list, train_obj in zip(
+        (hvs_random, hvs_qparego, hvs_qehvi, hvs_qnehvi),
+        (
+            train_obj_true_random,
+            train_obj_true_qparego,
+            train_obj_true_qehvi,
+            train_obj_true_qnehvi,
+        ),
+    ):
+        # compute hypervolume
+        bd = DominatedPartitioning(ref_point=problem.ref_point, Y=train_obj)
+        volume = bd.compute_hypervolume().item()
+        hvs_list.append(volume)
+    mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
+    mll_qnehvi, model_qnehvi = initialize_model(train_x_qnehvi, train_obj_qnehvi)
+
+    t1 = time.monotonic()
+
+    if verbose:
+        print(
+            f"\nBatch {iteration:>2}: Hypervolume (random, qNParEGO, qEHVI, qNEHVI) = "
+            f"({hvs_random[-1]:>4.2f}, {hvs_qparego[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}, {hvs_qnehvi[-1]:>4.2f}), "
+            f"time = {t1-t0:>4.2f}.",
+            end="",
+        )
+    else:
+        print(".", end="")
+
+
 def MOBO_one_batch(X_train, y_train, num_restarts,
                    ref_point, q_num, bs, post_mc_samples, 
                    save_file_instance, fn_dict,
@@ -154,7 +236,7 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
     N_BATCH = 1
     MC_SAMPLES = post_mc_samples
     verbose = True
-    df_space = pd.read_pickle(df_space)  #在这里改search space
+    df_space = pd.read_pickle(df_space)  
     df_space.reset_index(drop=True, inplace=True)
 
     hvs_qehvi_all = []
