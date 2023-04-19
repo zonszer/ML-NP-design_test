@@ -31,7 +31,7 @@ from botorch.sampling.normal import NormalMCSampler
 from botorch.utils.multi_objective.box_decompositions.dominated import (
     DominatedPartitioning,
 )
-from botorch.exceptions import BadInitialCandidatesWarning
+from botorch.exceptions import BadInitialCandidatesWarning, InputDataWarning
 import warnings
 from botorch.utils.multi_objective.scalarization import get_chebyshev_scalarization
 from botorch.acquisition.objective import GenericMCObjective
@@ -43,6 +43,7 @@ tkwargs = {
 }
 warnings.filterwarnings("ignore", category=BadInitialCandidatesWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=InputDataWarning)
 
 def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
     bounds = np.zeros((2, dim_X))
@@ -215,10 +216,9 @@ def split_for_val(X, y, ini_size=0.2):
 
 def optimize_and_get_random_observation(X, y, X_now, n):
     _, X_now_idx = get_idx_and_corObj(X_now, X)
-    mask = np.ones(X.shape, dtype=bool); mask_y = np.ones(y.shape, dtype=bool)
+    mask = np.ones_like(X.cpu().numpy(), dtype=bool); mask_y = np.ones_like(y.cpu().numpy(), dtype=bool)
     mask[X_now_idx] = False; mask_y[X_now_idx] = False
-    sliced_tensor = X[mask]
-    return generate_sobol_data(X[mask], y[mask_y], n=n)
+    return generate_sobol_data(X[mask].reshape(-1, X.shape[1]), y[mask_y].reshape(-1, y.shape[1]), n=n)
 
 def generate_sobol_data(X_r, y_r, n):
     '''generate random data of new_x'''
@@ -237,7 +237,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
                 save_file_instance, fn_dict,
                 df_space=None):
     N_TRIALS = 1
-    N_BATCH = 10
+    N_BATCH = 25
     MC_SAMPLES = post_mc_samples
     verbose = True
 
@@ -308,8 +308,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
             if verbose:
                 print(
                     f"\nBatch {iteration:>2}: Hypervolume (random, qNParEGO, qEHVI, qNEHVI) = "
-                    f"({hvs_random[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f} "
-                    f"({hvs_qehvi[-1]:>4.2f})"
+                    f"({hvs_random[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}) "
                     f" time = {t1-t0:>4.2f}.",
                     end="",
                 )
