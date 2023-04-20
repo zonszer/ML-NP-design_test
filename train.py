@@ -83,7 +83,11 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
                                        ref_point_, all_descs, max_batch_size, 
                                        validate=False, all_y=None):
     """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
-    partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
+    with torch.no_grad():
+        pred = model.posterior(train_x).mean
+    partitioning = FastNondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
+
+    # partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
     acq_func = qExpectedHypervolumeImprovement(
         model=model,
         ref_point=ref_point_.tolist(),
