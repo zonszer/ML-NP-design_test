@@ -19,17 +19,20 @@ from botorch.utils.multi_objective.hypervolume import Hypervolume
 
 from botorch.optim.optimize import optimize_acqf, optimize_acqf_list
 from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
-from botorch.acquisition.multi_objective.monte_carlo import qExpectedHypervolumeImprovement
+from botorch.acquisition.multi_objective.monte_carlo import qExpectedHypervolumeImprovement, qNoisyExpectedHypervolumeImprovement
 from botorch.utils.sampling import sample_simplex
 from botorch.optim import optimize_acqf_discrete
 
 from botorch.models.gp_regression import SingleTaskGP
 from botorch.models.transforms.outcome import Standardize
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
-from botorch.utils.transforms import unnormalize
+from botorch.utils.transforms import unnormalize, normalize
 from botorch.sampling.normal import NormalMCSampler
 from botorch.utils.multi_objective.box_decompositions.dominated import (
     DominatedPartitioning,
+)
+from botorch.utils.multi_objective.box_decompositions.non_dominated import (
+    FastNondominatedPartitioning,
 )
 from botorch.exceptions import BadInitialCandidatesWarning, InputDataWarning
 import warnings
@@ -43,13 +46,13 @@ tkwargs = {
 }
 warnings.filterwarnings("ignore", category=BadInitialCandidatesWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=InputDataWarning)
+# warnings.filterwarnings("ignore", category=InputDataWarning)
 
 def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
     bounds = np.zeros((2, dim_X))
     for i in range(dim_X):
-        bounds[0][i] = min(scale)  # min of bound
-        bounds[1][i] = max(scale)  # max of bound
+        bounds[0][i] = X[:, i].min()  # min of bound
+        bounds[1][i] = X[:, i].max()  # max of bound
     return bounds
 
 
@@ -71,7 +74,7 @@ def generate_initial_data(X, y, ref_point):
 def init_experiment_input(X, y, ref_point):
     X_dim = len(X[1])
     num_objectives = len(y[1])
-    bounds = generate_bounds(X, y, X_dim, num_objectives, scale=(-1, 1))
+    bounds = generate_bounds(X, y, X_dim, num_objectives, scale=(0, 1))
     bounds = torch.FloatTensor(bounds).cuda()
     ref_point = eval(ref_point) if isinstance(ref_point, type('')) else None
     X, y, ref_point_ = generate_initial_data(X=X, y=y, ref_point=ref_point)
@@ -84,9 +87,8 @@ def optimize_qehvi_and_get_observation(model, train_X, train_obj, sampler, num_r
                                        validate=False, all_y=None):
     """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
     with torch.no_grad():
-        pred = model.posterior(train_x).mean
-    partitioning = FastNondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
-
+        pred = model.posterior(normalize(train_X, bounds)).mean
+    partitioning = FastNondominatedPartitioning(ref_point=ref_point_, Y=pred)  #    Y=pred, Y=train_obj
     # partitioning = NondominatedPartitioning(ref_point=ref_point_, Y=train_obj)
     acq_func = qExpectedHypervolumeImprovement(
         model=model,
@@ -97,7 +99,7 @@ def optimize_qehvi_and_get_observation(model, train_X, train_obj, sampler, num_r
     candidates, _ = optimize_acqf_discrete(
         acq_function=acq_func,
         q=q_num,
-        choices=all_descs,
+        choices=normalize(all_descs, bounds),
         max_batch_size=max_batch_size,
         unique=False,                   #TODO: if train changed to True
         # num_restarts=num_restarts,
@@ -105,8 +107,7 @@ def optimize_qehvi_and_get_observation(model, train_X, train_obj, sampler, num_r
         # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
         # sequential=False,
     )
-    # new_x = unnormalize(candidates.detach())     #TODO: organize
-    new_x = candidates.detach()
+    new_x = unnormalize(candidates.detach(), bounds=bounds)
     # new_obj = new_obj_true + torch.randn_like(new_obj_true) * NOISE_SE
     if validate and all_y is not None:
         new_obj, new_obj_idx = get_idx_and_corObj(new_x, all_descs, all_y=all_y)
@@ -122,11 +123,10 @@ def optimize_qnehvi_and_get_observation(model, train_X, train_obj, sampler, num_
                                        ref_point_, all_descs, max_batch_size, 
                                        validate=False, all_y=None):
     """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
-    # partition non-dominated space into disjoint rectangles
     acq_func = qNoisyExpectedHypervolumeImprovement(
         model=model,
         ref_point=ref_point_.tolist(),  # use known reference point
-        X_baseline=train_X,
+        X_baseline=normalize(train_X, bounds),
         prune_baseline=True,  # prune baseline points that have estimated zero probability of being Pareto optimal
         sampler=sampler,
     )
@@ -134,7 +134,7 @@ def optimize_qnehvi_and_get_observation(model, train_X, train_obj, sampler, num_
     candidates, _ = optimize_acqf_discrete(
         acq_function=acq_func,
         q=q_num,
-        choices=all_descs,
+        choices=normalize(all_descs, bounds),
         max_batch_size=max_batch_size,
         unique=False,                   #TODO: if train changed to True
         # num_restarts=num_restarts,
@@ -143,7 +143,7 @@ def optimize_qnehvi_and_get_observation(model, train_X, train_obj, sampler, num_
         # sequential=False,
     )
     # observe new values
-    new_x = candidates.detach()
+    new_x = unnormalize(candidates.detach(), bounds=bounds)
     # new_obj = new_obj_true + torch.randn_like(new_obj_true) * NOISE_SE
     if validate and all_y is not None:
         new_obj, new_obj_idx = get_idx_and_corObj(new_x, all_descs, all_y=all_y)
@@ -198,8 +198,9 @@ def get_idx_and_corObj(new_x, all_descs, **kwargs):
     return kwargs, distmin_idx
 
 
-def initialize_model(train_x, train_obj):
+def initialize_model(train_x, train_obj, bounds):
     # define models for objective and constraint
+    train_x = normalize(train_x, bounds)
     model = SingleTaskGP(train_x, train_obj, outcome_transform=Standardize(m=train_obj.shape[-1]))  #TODO: maybe occur bug in outcome_transform
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     return mll, model
@@ -286,7 +287,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
         # train_x_qparego, train_obj_x_qparego = train_x_qehvi, train_obj_qehvi
         train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
 
-        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
+        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi, bounds)
         # mll_qparego, model_qparego = initialize_model(train_x_qehvi, train_obj_qehvi)
 
         init_volume = compute_hv(hv, train_obj_qehvi)
@@ -332,7 +333,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
             hvs_qehvi.append(compute_hv(hv, train_obj_qehvi))
             hvs_random.append(compute_hv(hv, train_obj_random))
 
-            mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
+            mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi, bounds)
 
             t1 = time.monotonic()
 
@@ -350,12 +351,8 @@ def MOBO_batches(X_train, y_train, num_restarts,
 def MOBO_one_batch(X_train, y_train, num_restarts,
                    ref_point, q_num, bs, post_mc_samples, 
                    save_file_instance, fn_dict,
-                   df_space):
-    N_TRIALS = 1
-    N_BATCH = 1
-    MC_SAMPLES = post_mc_samples
-    verbose = True
-    df_space = pd.read_pickle(df_space)  
+                   df_space_path):
+    df_space = pd.read_pickle(df_space_path)
     df_space.reset_index(drop=True, inplace=True)
 
     hvs_qehvi_all = []
@@ -363,11 +360,11 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
     hv = Hypervolume(ref_point=ref_point)
 
     # average over multiple trials
-    for trial in range(1, N_TRIALS + 1):
-        print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
+    for trial in range(1, 2):
+        print(f"\nTrial {trial:>2}", end="\n")
         hvs_qehvi = []
         train_x_qehvi, train_obj_qehvi = X, y
-        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi)
+        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi, bounds)
 
         pareto_mask = is_non_dominated(train_obj_qehvi)
         pareto_y = train_obj_qehvi[pareto_mask]
@@ -376,15 +373,16 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
 
         print("Hypervolume is ", volume)
         # run N_BATCH rounds of BayesOpt after the initial random batch
-        for iteration in range(1, N_BATCH + 1):
+        for iteration in range(1, 2):
             fit_gpytorch_mll(mll_qehvi)
-            new_sampler = SearchSpace_Sampler(fn_dict, df_space, MC_SAMPLES)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
+            new_sampler = SearchSpace_Sampler(fn_dict, df_space, post_mc_samples)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
-            new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
+            new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([post_mc_samples]))
 
             new_x_qehvi, _ = optimize_qehvi_and_get_observation(    #or use optimize_qnehvi_and_get_observation
-                model=model_qehvi, train_X=train_x_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
-                q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
+                model=model_qehvi, train_X=train_x_qehvi, train_obj=train_obj_qehvi,
+                sampler=new_sampler, num_restarts=num_restarts,
+                q_num=q_num, bounds=bounds, raw_samples=post_mc_samples,
                 ref_point_=ref_point, all_descs=all_descs, max_batch_size=bs
             )
 
@@ -399,16 +397,17 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
 
             torch.cuda.empty_cache()
             distmin_idx = compute_L2dist(recommend_descs, all_descs)
-            save_recommend_comp(distmin_idx, df_space, recommend_descs, all_descs)      #opt: all_descs
+            save_recommend_comp(distmin_idx, df_space, recommend_descs, all_descs, df_space_path)      #opt: all_descs
 
-def save_recommend_comp(idx, df_space, recommend_descs, all_descs=None):
-    df_space.iloc[idx , :].to_csv("recommend_comp4.13.csv", index=True, header=True)
+def save_recommend_comp(idx, df_space, recommend_descs, all_descs=None, df_space_path='RuRu'):
+    str1 = get_str_after_substring(df_space_path, 'Ru')
+    df_space.iloc[idx , :].to_csv("recommend_comp{}.csv".format(str1), index=True, header=True)
     print(df_space.iloc[idx , 0:4])
     df = pd.DataFrame(recommend_descs.cpu().numpy())
-    df.to_csv("recommend_descs4.13.csv", index=True, header=False)
+    df.to_csv("recommend_descs{}.csv".format(str1), index=True, header=False)
     if all_descs is not None:
         df_desc = pd.DataFrame(all_descs.cpu().numpy())
-        df_desc.to_csv("all_PCAdescs4.13.csv", index=True, header=False)
+        df_desc.to_csv("all_PCAdescs{}.csv".format(str1), index=True, header=False)
 
 def compute_L2dist(target_obj, space):
     dm = torch.cdist(target_obj, space)

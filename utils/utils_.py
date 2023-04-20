@@ -36,6 +36,14 @@ def dict_add(dictionary:dict, key, value, acc='list'):
             assert False, 'only list or set'
     dictionary[key] += [value]
 
+def get_str_after_substring(text:str, substring:str):
+    index = text.find(substring)
+    if index >= 0:
+        next_char = text[index + len(substring):]
+        return next_char
+    else:
+        return None
+
 def fn_comb(kwargs: List):
     def comb(X):
         for fn in kwargs:
