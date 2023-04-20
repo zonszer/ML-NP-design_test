@@ -78,7 +78,7 @@ def init_experiment_input(X, y, ref_point):
     return X, y, bounds, ref_point_
 
 
-def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts, 
+def optimize_qehvi_and_get_observation(model, train_X, train_obj, sampler, num_restarts, 
                                        q_num, bounds, raw_samples,
                                        ref_point_, all_descs, max_batch_size, 
                                        validate=False, all_y=None):
@@ -114,16 +114,43 @@ def optimize_qehvi_and_get_observation(model, train_obj, sampler, num_restarts,
         print('idx are:', new_obj_idx)
     else:
         new_obj = None
-    # new_obj = torch.FloatTensor([[  -6.7064,   -5.8886],        #？为啥不用根据new_x去计算new_obj # not used for now:date4.7
-    #     [ -51.7423,   -6.8102],
-    #     [ -38.3063,   -6.8469],
-    #     [ -13.4827,   -9.0434],
-    #     [ -10.3850,  -10.6817],
-    #     [ -27.7399,   -6.6023],
-    #     [ -64.7528,   -2.1669],
-    #     [-168.0079,   -4.3890],
-    #     [ -17.1416,  -10.4511],
-    #     [  -7.0856,   -5.5974]])        #.shape = [10,2]
+
+    return new_x, new_obj
+
+def optimize_qnehvi_and_get_observation(model, train_X, train_obj, sampler, num_restarts, 
+                                       q_num, bounds, raw_samples,
+                                       ref_point_, all_descs, max_batch_size, 
+                                       validate=False, all_y=None):
+    """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
+    # partition non-dominated space into disjoint rectangles
+    acq_func = qNoisyExpectedHypervolumeImprovement(
+        model=model,
+        ref_point=ref_point_.tolist(),  # use known reference point
+        X_baseline=train_X,
+        prune_baseline=True,  # prune baseline points that have estimated zero probability of being Pareto optimal
+        sampler=sampler,
+    )
+    # optimize
+    candidates, _ = optimize_acqf_discrete(
+        acq_function=acq_func,
+        q=q_num,
+        choices=all_descs,
+        max_batch_size=max_batch_size,
+        unique=False,                   #TODO: if train changed to True
+        # num_restarts=num_restarts,
+        # raw_samples=raw_samples,
+        # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
+        # sequential=False,
+    )
+    # observe new values
+    new_x = candidates.detach()
+    # new_obj = new_obj_true + torch.randn_like(new_obj_true) * NOISE_SE
+    if validate and all_y is not None:
+        new_obj, new_obj_idx = get_idx_and_corObj(new_x, all_descs, all_y=all_y)
+        new_obj = new_obj['all_y']
+        print('idx are:', new_obj_idx)
+    else:
+        new_obj = None
 
     return new_x, new_obj
 
@@ -277,7 +304,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
             # new_sampler_qnparego = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
 
             new_x, new_obj = optimize_qehvi_and_get_observation(
-                model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
+                model=model_qehvi, train_X=train_x_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
                 q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
                 ref_point_=ref_point, all_descs=X, max_batch_size=bs,
                 all_y=y, validate=True
@@ -355,8 +382,8 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
             new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([MC_SAMPLES]))
 
-            new_x_qehvi, _ = optimize_qehvi_and_get_observation(
-                model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
+            new_x_qehvi, _ = optimize_qehvi_and_get_observation(    #or use optimize_qnehvi_and_get_observation
+                model=model_qehvi, train_X=train_x_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler, num_restarts=num_restarts, 
                 q_num=q_num, bounds=bounds, raw_samples=MC_SAMPLES,
                 ref_point_=ref_point, all_descs=all_descs, max_batch_size=bs
             )
