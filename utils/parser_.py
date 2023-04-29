@@ -40,20 +40,22 @@ parser.add_argument('--mc_samples_num', type=int, default=2048, help='input num 
 # parser.add_argument('--min_sets_per_img', '--minsets', type=int, default=-1, help='')
 # parser.add_argument('--max_sets_per_img', '--maxsets', type=int, default=1501, help='used in new patch_gen')
 parser.add_argument('--seed', type=int, default=0, help='random seed (default: 0)')
-# parser.add_argument('--shear', type=int, default=25, help='augmentation: shear')
-# parser.add_argument('--degrees', type=int, default=25, help='augmentation: degrees')
-# parser.add_argument('--Npos', type=int, default=2, help='')     ##positive
 # float
+## GP params:
 parser.add_argument('--ker_lengthscale_upper', type=float, default=25, help='ker.lengthscale upper limit') 
 parser.add_argument('--ker_var_upper', type=float, default=100, help='ker.variance upper limit') 
+## crossvalidation params:
 parser.add_argument('--split_ratio', type=float, default=0, help='split_ratio=test_size/(test_size+train_size') 
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate') 
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate') 
 # bool
+## preprocess params:
 parser.add_argument('--use_concentration', default=False, action='store_true', help='turns off flip and 90deg rotation augmentation')
 parser.add_argument('--only_use_elem2', default=False, action='store_true', help='turns off flip and 90deg rotation augmentation')
-# parser.add_argument('--addAP', default=False, action='store_true', help='add AP lsos to standard loss')
-# parser.add_argument('--AP_loss', default=False, action='store_true')
+parser.add_argument('--use_MI_filter', default=False, action='store_true', help='turns off flip and 90deg rotation augmentation')
+parser.add_argument('--use_y_norm', default=False, action='store_true', help='turns off flip and 90deg rotation augmentation')
+parser.add_argument('--is_MOBO', default=False, action='store_true', help='turns off flip and 90deg rotation augmentation')
+
 
 def clean_args(args) -> list:
     # for args.model:
