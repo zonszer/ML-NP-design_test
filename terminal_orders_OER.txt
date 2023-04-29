@@ -11,7 +11,9 @@
 --q_num=7
 --mc_samples_num=1024
 --data_search_space=data/SearchSpace_3elems_Ru0.9.pkl
-
+--use_y_norm
+--is_MOBO
+--use_MI_filter
 
 which model better for acc：===pearsonr===
 python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 

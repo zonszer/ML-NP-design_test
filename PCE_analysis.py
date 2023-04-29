@@ -110,7 +110,7 @@ def filter_byIdx(idx_union):
 
 def MI_filtering_X(X, y):
     idx_list_beforeMerge = []
-    for i in range(len(y.shape[1])):
+    for i in range(y.shape[1]):
         idx = filter_byMI(X, y[:, i])
         idx_list_beforeMerge.append(idx)
 
@@ -121,7 +121,7 @@ def MI_filtering_X(X, y):
 
 
 def norm_y(y, is_MOBO, fn_dict):
-    for i in range(len(y.shape[1])):
+    for i in range(y.shape[1]):
         std_scaler_y = StandardScaler()
         y[:, i] = std_scaler_y.fit_transform(y[:, i].reshape(-1, 1))[:, -1]
         # assert '''y1 is y['slope relative to Ru']'''
@@ -148,12 +148,12 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI
     #2. X norm before PCA
     std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
     X_norm = std_scalerX.fit_transform(X)     #对X进行归一化 norm3
-    methods_tobe_combined.append(std_scalerX)
+    methods_tobe_combined.append(std_scalerX.transform)
 
     #3. PCA
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))
     X_pca = pca.fit_transform(X_norm)
-    methods_tobe_combined.append(pca)
+    methods_tobe_combined.append(pca.transform)
 
     #4. X norm after PCA
     # std_scalerX_afpca = StandardScaler()
@@ -193,7 +193,7 @@ def Main(args):
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim,
-                                  args.data_path, args.use_MI_filter, args.use_y_norma, args.is_MOBO)
+                                  args.data_path, args.use_MI_filter, args.use_y_norm, args.is_MOBO)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
@@ -217,18 +217,18 @@ def Main(args):
         if args.only_use_elem2:
             X_train, y_train = X_train[1:, :], y_train[1:, :]
 
-        # MOBO_one_batch(X_train, y_train, args.num_restarts,
-        #                args.ref_point, args.q_num, args.bs, args.mc_samples_num,
-        #                save_file_instance, fn_dict,
-        #                df_space_path=args.data_search_space)
+        MOBO_one_batch(X_train, y_train, args.num_restarts,
+                       args.ref_point, args.q_num, args.bs, args.mc_samples_num,
+                       save_file_instance, fn_dict,
+                       df_space_path=args.data_search_space)
         
         # MOBO_batches(X_train, y_train, args.num_restarts,
         #             args.ref_point, args.q_num, args.bs, args.mc_samples_num,
         #             save_file_instance, fn_dict,
         #             df_space_path=args.data_search_space)
 
-        cross_train_validation(X_train, y_train, args.Kfold, args.num_restarts,
-                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # cross_train_validation(X_train, y_train, args.Kfold, args.num_restarts,
+        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X_train, X_test)
         
