@@ -1,68 +1,68 @@
 
-
-
+=======MOBO settings:
 
 --id=test_onebatch
 --data_path=data/OER-Summary-LZ.xlsx
---model=Mass-activity-at-1.53V+slope-relative-to-Ru
+--model=Mass-activity-at-1.53V
 --PCA_dim_select_method=assigned
 --num_restarts=15
 --PCA_dim=22
 --bs=1024
---q_num=5
+--q_num=7
 --mc_samples_num=1024
---data_search_space=data/SearchSpace_3elems_Ru0.7.pkl
+--data_search_space=data/SearchSpace_3elems_Ru0.9.pkl
+
 
 which model better for acc：===pearsonr===
-python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
+python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
+python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=Slope_ls50 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=Slope_ls25 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=Slope_ls15 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
+python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=Slope_ls10 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
+python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
 
 ===spearsonr=== auto + 0.98
-python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
+python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
+python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=Slope_ls50 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=Slope_ls25 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=Slope_ls15 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
+python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=Slope_ls10 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
+python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
 
 ============== Kdolf=5 + auto + 0.98 （还没做）
-python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
+python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
+python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=Slope_ls50 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=Slope_ls25 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=Slope_ls15 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
+python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=Slope_ls10 --data_path=OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
+python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
 
 
 ===spearsonr=== assigned + 5

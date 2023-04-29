@@ -108,32 +108,45 @@ def filter_byIdx(idx_union):
         return X[:, idx_union]
     return fn
 
-def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
-    std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
-    #是一个用来对数据进行归一化和标准化的类norm2（利用var std等（那么在预测的时候， 也要对数据做同样的标准化处理，即也要用上面的scaler中的均值和方差来对预测时候的特征进行标准化
-    # std_scalerX_afpca = StandardScaler()
-
-    X = np.array(X_compo)
-    #X_log = np.log(X.astype('float'))   
-    y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))   
-    # plot_Xy_relation(X, y)
+def MI_filtering_X(X, y, preprocess_methods):
+    for i in range(len(y)):
     idx1 = filter_byMI(X, y[:, 0])
     idx2 = filter_byMI(X, y[:, 1])
-    idx_union = np.unique(np.concatenate((idx1, idx2)))     # Find the union
+    idx_union = np.unique(np.concatenate((idx1, idx2)))  # Find the union
     X = X[:, idx_union]
-    printc.blue('X desc shape:', X.shape[1])
+    printc.blue('X desc shape after MI filtering:', X.shape[1])
+    preprocess_methods.append(filter_byIdx(idx_union))
 
-    pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))      #TODO:random_state=seed still useless
+def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI_filter, use_y_norm):
+    preprocess_methods = []
+    X = np.array(X_compo)
+    #X_log = np.log(X.astype('float'))
+    y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))
+
+    # 1. MI filtering:
+    if use_MI_filter:
+        MI_filtering_X(X, y, preprocess_methods)
+        # plot_Xy_relation(X, y)
+    else:
+        pass
+
+    #2. X norm before PCA
+    std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
     X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
-    X_pca = pca.fit_transform(X_norm)                    #PCA之前是否需要StandardScaler norm一下（和原论文中顺序不同）
+
+    #3. PCA
+    pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))
+    X_pca = pca.fit_transform(X_norm)
+
+    #4. X norm after PCA
+    # std_scalerX_afpca = StandardScaler()
     # X_pca_norm = std_scalerX_afpca.fit_transform(X_pca)
-    # y_norm =  std_scalery.fit_transform(y)
-    # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
-    fn_dict = {}
-    fn_dict['fn_input'] = fn_comb(kwargs=[filter_byIdx(idx_union), std_scalerX.transform,
-                                          pca.transform])
+
+    #5. y norm
+    if use_y_norm:
+
     if 'OER' in dataset_name:
-        assert y.shape[1] == 2 
+        assert y.shape[1] == 2
         std_scaler_y0 = StandardScaler()
         std_scaler_y1 = StandardScaler()
         y[:, 0] = std_scaler_y0.fit_transform(y[:, 0].reshape(-1, 1))[:, -1]
@@ -142,6 +155,11 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name):
         y[:, 1] = - y[:, 1]
         fn_dict['std_scaler_y0'] = std_scaler_y0
         fn_dict['std_scaler_y1'] = std_scaler_y1
+
+    # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
+    fn_dict = {}
+    fn_dict['fn_input'] = fn_comb(kwargs=[filter_byIdx(idx_union), std_scalerX.transform,
+                                          pca.transform])
 
     return X_pca, y, fn_dict
 
@@ -170,14 +188,16 @@ def Main(args):
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
-    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim, args.data_path)
+    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim,
+                                  args.data_path, args.use_MI_filter, args.use_y_norm)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
     if 'PCE' in args.data_path:
-        # cross_train_validation(X, y, args.Kfold, args.num_restarts,
-        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
-        elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        cross_train_validation(X, y, args.Kfold, args.num_restarts,
+                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
+        #                      args.ker_var_upper, save_file_instance)
     elif 'OER' in args.data_path:
         # 1:
         # cross_train_validation(X, y, args.Kfold, args.num_restarts,
@@ -193,16 +213,18 @@ def Main(args):
         if args.only_use_elem2:
             X_train, y_train = X_train[1:, :], y_train[1:, :]
 
-        MOBO_one_batch(X_train, y_train, args.num_restarts,
-                       args.ref_point, args.q_num, args.bs, args.mc_samples_num,
-                       save_file_instance, fn_dict,
-                       df_space_path=args.data_search_space)
+        # MOBO_one_batch(X_train, y_train, args.num_restarts,
+        #                args.ref_point, args.q_num, args.bs, args.mc_samples_num,
+        #                save_file_instance, fn_dict,
+        #                df_space_path=args.data_search_space)
         
         # MOBO_batches(X_train, y_train, args.num_restarts,
         #             args.ref_point, args.q_num, args.bs, args.mc_samples_num,
         #             save_file_instance, fn_dict,
         #             df_space_path=args.data_search_space)
 
+        cross_train_validation(X_train, y_train, args.Kfold, args.num_restarts,
+                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X_train, X_test)
         
