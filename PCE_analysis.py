@@ -141,7 +141,6 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI
     if use_MI_filter:
         X, filter_method = MI_filtering_X(X, y)
         methods_tobe_combined.append(filter_method)
-        # plot_Xy_relation(X, y)
     else:
         pass
 
@@ -201,37 +200,32 @@ def Main(args):
         cross_train_validation(X, y, args.Kfold, args.num_restarts,
                                args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
-        #                      args.ker_var_upper, save_file_instance)
+        #                      args.ker_var_upper, save_file_instance,
+        #                      args.split_ratio)
     elif 'OER' in args.data_path:
-        # 1:
-        # cross_train_validation(X, y, args.Kfold, args.num_restarts,
-        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
-        # 2：
-        # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
-        # 3:
-        # X_list, y_list = select_train_elems()     #first try without split elem data
-        if args.split_ratio != 0:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=args.split_ratio)
-        else:
-            X_train, y_train = X, y
         if args.only_use_elem2:
-            X_train, y_train = X_train[1:, :], y_train[1:, :]
+            X, y = X[1:, :], y[1:, :]
+        # 1:
+        cross_train_validation(X, y, args.Kfold, args.num_restarts,
+                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # 2：
+        # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
+        #                      args.ker_var_upper, save_file_instance,
+        #                      args.split_ratio)
 
-        MOBO_one_batch(X_train, y_train, args.num_restarts,
-                       args.ref_point, args.q_num, args.bs, args.mc_samples_num,
-                       save_file_instance, fn_dict,
-                       df_space_path=args.data_search_space)
+        # 3：
+        # MOBO_one_batch(X, y, args.num_restarts,
+        #                args.ref_point, args.q_num, args.bs, args.mc_samples_num,
+        #                save_file_instance, fn_dict,
+        #                df_space_path=args.data_search_space)
         
-        # MOBO_batches(X_train, y_train, args.num_restarts,
+        # MOBO_batches(X, y, args.num_restarts,
         #             args.ref_point, args.q_num, args.bs, args.mc_samples_num,
         #             save_file_instance, fn_dict,
-        #             df_space_path=args.data_search_space)
+        #             df_space_path=args.data_search_space, split_ratio=args.split_ratio)
 
-        # cross_train_validation(X_train, y_train, args.Kfold, args.num_restarts,
-        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
-        # log_values = cycle_train([X_train, y_train], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
-        # plot_CycleTrain(y_list_descr, X_train, X_test)
-        
+        # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
+        # plot_CycleTrain(y_list_descr, X, X_test)
     else:
         raise ValueError('Unknow dataset')
 

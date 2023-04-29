@@ -267,7 +267,7 @@ def compute_hv(hv, train_obj_qehvi):
 def MOBO_batches(X_train, y_train, num_restarts,
                 ref_point, q_num, bs, post_mc_samples, 
                 save_file_instance, fn_dict,
-                df_space=None):
+                split_ratio, df_space=None):
     N_TRIALS = 1
     N_BATCH = 25
     MC_SAMPLES = post_mc_samples
@@ -283,7 +283,10 @@ def MOBO_batches(X_train, y_train, num_restarts,
         hvs_qehvi, hvs_random = [], []
         
         # split data for valideation
-        train_x_qehvi, train_obj_qehvi = split_for_val(X, y, ini_size=0.2)
+        if args.split_ratio != 0:
+            train_x_qehvi, train_obj_qehvi = split_for_val(X, y, ini_size=split_ratio)
+        else:
+            train_x_qehvi, train_obj_qehvi = X, y
         # train_x_qparego, train_obj_x_qparego = train_x_qehvi, train_obj_qehvi
         train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
 
@@ -418,8 +421,8 @@ def compute_L2dist(target_obj, space):
 
 
 # ================================   以下是单变量的部分   ===================================
-def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile, split_ratio):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, split_ratio)
 
     ker = GPy.kern.Matern52(input_dim=X_train.shape[1], ARD=True)  # Matern52有啥讲究吗？
     ker.lengthscale.constrain_bounded(1e-2, ker_lengthscale_upper)  # 超参数？（好像是posterior 得到的）
