@@ -108,35 +108,52 @@ def filter_byIdx(idx_union):
         return X[:, idx_union]
     return fn
 
-def MI_filtering_X(X, y, preprocess_methods):
-    for i in range(len(y)):
-    idx1 = filter_byMI(X, y[:, 0])
-    idx2 = filter_byMI(X, y[:, 1])
-    idx_union = np.unique(np.concatenate((idx1, idx2)))  # Find the union
+def MI_filtering_X(X, y):
+    idx_list_beforeMerge = []
+    for i in range(len(y.shape[1])):
+        idx = filter_byMI(X, y[:, i])
+        idx_list_beforeMerge.append(idx)
+
+    idx_union = np.unique(np.concatenate(idx_list_beforeMerge))  # Find the union
     X = X[:, idx_union]
     printc.blue('X desc shape after MI filtering:', X.shape[1])
-    preprocess_methods.append(filter_byIdx(idx_union))
+    return X, filter_byIdx(idx_union)
 
-def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI_filter, use_y_norm):
-    preprocess_methods = []
+
+def norm_y(y, is_MOBO, fn_dict):
+    for i in range(len(y.shape[1])):
+        std_scaler_y = StandardScaler()
+        y[:, i] = std_scaler_y.fit_transform(y[:, i].reshape(-1, 1))[:, -1]
+        # assert '''y1 is y['slope relative to Ru']'''
+        if i == 1 and is_MOBO:
+            y[:, i] = - y[:, i]
+        fn_dict['std_scaler_y'+str(i)] = std_scaler_y
+    return y
+
+def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI_filter, use_y_norm, is_MOBO):
+    fn_dict = {}
+    methods_tobe_combined = []
     X = np.array(X_compo)
     #X_log = np.log(X.astype('float'))
     y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))
 
     # 1. MI filtering:
     if use_MI_filter:
-        MI_filtering_X(X, y, preprocess_methods)
+        X, filter_method = MI_filtering_X(X, y)
+        methods_tobe_combined.append(filter_method)
         # plot_Xy_relation(X, y)
     else:
         pass
 
     #2. X norm before PCA
     std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
-    X_norm = std_scalerX.fit_transform(X)             #对X进行归一化 norm3
+    X_norm = std_scalerX.fit_transform(X)     #对X进行归一化 norm3
+    methods_tobe_combined.append(std_scalerX)
 
     #3. PCA
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))
     X_pca = pca.fit_transform(X_norm)
+    methods_tobe_combined.append(pca)
 
     #4. X norm after PCA
     # std_scalerX_afpca = StandardScaler()
@@ -144,22 +161,9 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI
 
     #5. y norm
     if use_y_norm:
+        y = norm_y(y, is_MOBO, fn_dict)
 
-    if 'OER' in dataset_name:
-        assert y.shape[1] == 2
-        std_scaler_y0 = StandardScaler()
-        std_scaler_y1 = StandardScaler()
-        y[:, 0] = std_scaler_y0.fit_transform(y[:, 0].reshape(-1, 1))[:, -1]
-        y[:, 1] = std_scaler_y1.fit_transform(y[:, 1].reshape(-1, 1))[:, -1]
-        assert '''y1 is y['slope relative to Ru']'''
-        y[:, 1] = - y[:, 1]
-        fn_dict['std_scaler_y0'] = std_scaler_y0
-        fn_dict['std_scaler_y1'] = std_scaler_y1
-
-    # fn_dict = {'fn_norm_bfPCA': std_scalerX, 'fn_pca': pca, 'fn_norm_afPCA': std_scalerX_afpca}
-    fn_dict = {}
-    fn_dict['fn_input'] = fn_comb(kwargs=[filter_byIdx(idx_union), std_scalerX.transform,
-                                          pca.transform])
+    fn_dict['fn_input'] = fn_comb(kwargs=methods_tobe_combined)
 
     return X_pca, y, fn_dict
 
@@ -189,7 +193,7 @@ def Main(args):
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim,
-                                  args.data_path, args.use_MI_filter, args.use_y_norm)
+                                  args.data_path, args.use_MI_filter, args.use_y_norma, args.is_MOBO)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
