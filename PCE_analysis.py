@@ -258,12 +258,6 @@ if __name__ == '__main__':
     current_time = current_time.strftime("%m%d-%H_%M_%S")
     with measure_time():
         args = get_args()
-        tkwargs = {
-            "dtype": torch.double,
-            "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        }
-
-        # SMOKE_TEST = os.environ.get("SMOKE_TEST")
         become_deterministic(args.seed)
         
         save_file_instance = save_logfile(args.save_name, args.model_dir, args)

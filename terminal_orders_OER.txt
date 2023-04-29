@@ -15,23 +15,7 @@
 --is_MOBO
 --use_MI_filter
 
-which model better for acc：===pearsonr===
-python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
-
-python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
-
-python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
-
-python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
-
-python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
-
-python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
-
-python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100
-
-python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
-
+which model better for acc：
 ===spearsonr=== auto + 0.98
 python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
@@ -49,7 +33,7 @@ python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx
 
 python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=auto --num_restarts=12 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100
 
-============== Kdolf=5 + auto + 0.98 （还没做）
+============== Kdolf=5 + auto + 0.98 (finall not use)
 python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
 python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 
@@ -68,75 +52,93 @@ python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx
 
 
 ===spearsonr=== assigned + 5
-python -utt PCE_analysis.py --id=diff_model-H0 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-A0 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-H1 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-A1 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=10 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-H2 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-A2 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-H3 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-A3 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=5 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=5 --ker_lengthscale_upper=10 --ker_var_upper=100
 
 
-===spearsonr=== assigned + 10
-python -utt PCE_analysis.py --id=diff_model-H0 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+===spearsonr=== assigned + 10  TODO：
+python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-A0 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-H1 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-A1 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=10 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-H2 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-A2 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-H3 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-A3 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=10 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=10 --ker_lengthscale_upper=10 --ker_var_upper=100
 
 
 ===spearsonr=== assigned + 15
-python -utt PCE_analysis.py --id=diff_model-H0 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-A0 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-H1 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-A1 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-H2 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=50 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-A2 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=25 --ker_var_upper=100 
 
-python -utt PCE_analysis.py --id=diff_model-H3 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=15 --ker_var_upper=100
 
-python -utt PCE_analysis.py --id=diff_model-A3 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=20 --Kfold=5 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100
+
+
+===spearsonr=== assigned + 30
+python -utt PCE_analysis.py --id=MassActivity_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=50 --ker_var_upper=100
+
+python -utt PCE_analysis.py --id=MassActivity_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=25 --ker_var_upper=100
+
+python -utt PCE_analysis.py --id=MassActivity_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=15 --ker_var_upper=100
+
+python -utt PCE_analysis.py --id=MassActivity_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=10 --ker_var_upper=100
+
+python -utt PCE_analysis.py --id=Slope_ls50 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=50 --ker_var_upper=100
+
+python -utt PCE_analysis.py --id=Slope_ls25 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=25 --ker_var_upper=100
+
+python -utt PCE_analysis.py --id=Slope_ls15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=15 --ker_var_upper=100
+
+python -utt PCE_analysis.py --id=Slope_ls10 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=30 --ker_lengthscale_upper=10 --ker_var_upper=100
 
 
 ===spearsonr=== auto + cor = 0.98
-python -utt PCE_analysis.py --id=diff_model-H0 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-H0 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
 
-python -utt PCE_analysis.py --id=diff_model-A0 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-A0 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=50 --ker_var_upper=100 --use_concentration
 
-python -utt PCE_analysis.py --id=diff_model-H1 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-H1 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
 
-python -utt PCE_analysis.py --id=diff_model-A1 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-A1 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration
 
-python -utt PCE_analysis.py --id=diff_model-H2 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-H2 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
 
-python -utt PCE_analysis.py --id=diff_model-A2 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-A2 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration
 
-python -utt PCE_analysis.py --id=diff_model-H3 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-H3 --data_path=PCE1.xlsx --model=Highest-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
 
-python -utt PCE_analysis.py --id=diff_model-A3 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=5 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
+python -utt PCE_analysis.py --id=diff_model-A3 --data_path=PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=20 --Kfold=8 --PCA_dim=0.98 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_concentration
 
 
 
