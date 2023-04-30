@@ -207,7 +207,7 @@ def Main(args):
 
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
-    # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
+    plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim,
                                   args.data_path, args.use_MI_filter, args.use_y_norm,
                                   args.is_MOBO, args.use_Xnorm_afterPCA, descs.columns.values)

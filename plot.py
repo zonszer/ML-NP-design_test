@@ -120,6 +120,9 @@ def plt_true_vs_pred(y_true_list, y_pred_list, y_uncer_list, title_str_list, col
     return transfer_lst2dict(cal_methods, scores)
 
 def plot_Xy_relation(X, y, col_names):
+    for i in range(len(col_names)):
+        col_names[i] = col_names[i].replace("MagpieData", "")
+
     mi = mutual_info_regression(X, y)   #[616, 132] VS [616, 1]
     mi /= np.max(mi)                    #还是norm3
     # ax.hist(mi, orientation='horizontal', color='blue')        # hist is distribution figure, while bar is 柱形图
@@ -138,7 +141,6 @@ def plot_Xy_relation(X, y, col_names):
     ax.set_xlabel('MI correlation')
     # ax.set_title('')
     plt.show()
-    pass
 
 def plot_desc_distribution(X_pca, screen_dims=5):
     n_plots=screen_dims
