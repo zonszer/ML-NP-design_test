@@ -166,51 +166,55 @@ def plot_desc_distribution(X_pca, screen_dims=5):
     plt.show()
 
 def plot_PCA_vis(X, y):
-    # # Step 4: Plot the 3D visualization
-    # fig = plt.figure(figsize=(8, 6))
-    # ax = fig.add_subplot(111, projection='3d')
-    # sc = ax.scatter(X_pca_norm[:, 0], X_pca_norm[:, 1], X_pca_norm[:, 2], c=y, cmap=plt.cm.get_cmap('copper'),
-    #                 edgecolor='k', s=40)
-    #
-    # cbar = plt.colorbar(sc)
-    # cbar.set_label('Slope relative to Ru')
-    # ax.set_title("First three PCA directions")
-    # ax.set_xlabel("1st eigenvector")
-    # ax.set_ylabel("2nd eigenvector")
-    # ax.set_zlabel("3rd eigenvector")
-    # ax.view_init(elev=30, azim=45)
-    # plt.show()
-
-    import plotly.express as px, plotly
-    import pandas as pd
-    import numpy as np
-    from plotly.offline import plot, iplot
-
+    from sklearn.preprocessing import StandardScaler
     # Assuming X and y are already defined as numpy arrays or lists
     assert np.array(X).shape[1] == 3
 
     # Data preprocessing
-    from sklearn.preprocessing import StandardScaler
-
     std_scalerX_afpca = StandardScaler()
     X_pca_norm = std_scalerX_afpca.fit_transform(X)
 
-    # Convert the processed data into a DataFrame
-    data = pd.DataFrame(X_pca_norm, columns=['1st Eigenvector', '2nd Eigenvector', '3rd Eigenvector'])
-    data['Slope relative to Ru'] = y
+    # Step 4: Plot the 3D visualization
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    sc = ax.scatter(X_pca_norm[:, 0], X_pca_norm[:, 1], X_pca_norm[:, 2], c=y, cmap=plt.cm.get_cmap('copper'),
+                    edgecolor='k', s=45)
 
-    # Create the interactive 3D scatterplot
-    fig = px.scatter_3d(data, x='1st Eigenvector', y='2nd Eigenvector', z='3rd Eigenvector', color='Slope relative to Ru',
-                        color_continuous_scale=px.colors.sequential.YlOrRd_r, opacity=0.8)
+    cbar = plt.colorbar(sc)
+    cbar.set_label('Average Ratio over Control')
+    ax.set_title("PCE Dataset Clustering Analysis After PCA Dimensionality Reduction")
+    ax.set_xlabel("1st Eigenvector")
+    ax.set_ylabel("2nd Eigenvector")
+    ax.set_zlabel("3rd Eigenvector")
+    ax.view_init(elev=30, azim=45)
+    plt.show()
 
-    fig.update_layout(scene=dict(xaxis_title='1st Eigenvector',
-                                 yaxis_title='2nd Eigenvector',
-                                 zaxis_title='3rd Eigenvector'),
-                      title='OER Dataset Clustering Analysis After PCA Dimensionality Reduction',
-                      coloraxis_colorbar=dict(title='Slope relative to Ru'),
-                     )
 
-    fig.show()
-    plot(fig, filename='OER_PCA-vis-slope.html', auto_open=True)
-    # iplot(fig, filename='plotly_figure')
+    # import chart_studio
+    # import chart_studio.plotly as py
+    # import pandas as pd
+    # import plotly.express as px, plotly
+    # # from plotly.plotly import plot, iplot, init_notebook_mode
+    #
+    # chart_studio.tools.set_credentials_file(username='zonszer', api_key='bPmcbyflVVaQYqrbiylA')
+    #
+    #
+    # # Convert the processed data into a DataFrame
+    # data = pd.DataFrame(X_pca_norm, columns=['1st Eigenvector', '2nd Eigenvector', '3rd Eigenvector'])
+    # data['Average Ratio over Control'] = y
+    #
+    # # Create the interactive 3D scatterplot
+    # fig = px.scatter_3d(data, x='1st Eigenvector', y='2nd Eigenvector', z='3rd Eigenvector', color='Average Ratio over Control',
+    #                     color_continuous_scale=px.colors.sequential.YlOrRd, opacity=0.8)
+    #
+    # fig.update_layout(scene=dict(xaxis_title='1st Eigenvector',
+    #                              yaxis_title='2nd Eigenvector',
+    #                              zaxis_title='3rd Eigenvector'),
+    #                   title='PCE Dataset Clustering Analysis After PCA Dimensionality Reduction',
+    #                   coloraxis_colorbar=dict(title='Average Ratio over Control'),
+    #                  )
+    #
+    # # fig.show()
+    # py.iplot(fig, filename='PCE_PCA-vis')
+    # # plot(fig, filename='plotly_figure.html')
 
