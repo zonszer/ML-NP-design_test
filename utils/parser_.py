@@ -61,6 +61,8 @@ parser.add_argument('--use_MI_filter', default=False, action='store_true',
                     help='turns off flip and 90deg rotation augmentation')
 parser.add_argument('--use_y_norm', default=False, action='store_true',
                     help='turns off flip and 90deg rotation augmentation')
+parser.add_argument('--use_Xnorm_afterPCA', default=False, action='store_true',
+                    help='turns off flip and 90deg rotation augmentation')
 
 
 def clean_args(args) -> list:

@@ -21,7 +21,7 @@ import torch
 
 from utils.parser_ import get_args
 from utils.utils_ import *
-from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain
+from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis
 # from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from train import *
 from sklearn.model_selection import train_test_split
@@ -140,7 +140,8 @@ def norm_y(y, is_MOBO, fn_dict):
         fn_dict['std_scaler_y'+str(i)] = std_scaler_y
     return y
 
-def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI_filter, use_y_norm, is_MOBO):
+def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name,
+                  use_MI_filter, use_y_norm, is_MOBO, use_Xnorm_afterPCA):
     fn_dict = {}
     methods_tobe_combined = []
     X = np.array(X_compo)
@@ -163,10 +164,13 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name, use_MI
     pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))
     X_pca = pca.fit_transform(X_norm)
     methods_tobe_combined.append(pca.transform)
+    # plot_PCA_vis(X_pca, y)
 
     #4. X norm after PCA
-    # std_scalerX_afpca = StandardScaler()
-    # X_pca_norm = std_scalerX_afpca.fit_transform(X_pca)
+    if use_Xnorm_afterPCA:
+        std_scalerX_afpca = StandardScaler()
+        X_pca = std_scalerX_afpca.fit_transform(X_pca)
+        methods_tobe_combined.append(std_scalerX_afpca.transform)
 
     #5. y norm
     if use_y_norm:
@@ -202,7 +206,8 @@ def Main(args):
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim,
-                                  args.data_path, args.use_MI_filter, args.use_y_norm, args.is_MOBO)
+                                  args.data_path, args.use_MI_filter, args.use_y_norm,
+                                  args.is_MOBO, args.use_Xnorm_afterPCA)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model

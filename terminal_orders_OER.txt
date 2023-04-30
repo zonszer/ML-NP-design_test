@@ -14,6 +14,7 @@
 --use_y_norm
 --is_MOBO
 --use_MI_filter
+--zuse_Xnorm_afterPCA
 
 which model better for acc：
 ===spearsonr=== auto + 0.98
@@ -147,13 +148,10 @@ python -utt PCE_analysis.py --id=mass-ls10-var10 --data_path=data/OER-Summary-LZ
 
 
 
-
-
-
 =======best model：======
-python -utt PCE_analysis.py --id=MassActivity_ls10-PCA15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=MassActivity_ls10-PCA15 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_MI_filter --use_Xnorm_afterPCA
 
-python -utt PCE_analysis.py --id=Slope_ls10-PCA15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100 
+python -utt PCE_analysis.py --id=Slope_ls10-PCA15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_MI_filter --use_Xnorm_afterPCA
 
 
 
