@@ -218,3 +218,28 @@ def plot_PCA_vis(X, y):
     # py.iplot(fig, filename='PCE_PCA-vis')
     # # plot(fig, filename='plotly_figure.html')
 
+def plot_PCA_matminer_heatmap(X_matminer, X_pca, matminer_colnames):
+    from sklearn.preprocessing import StandardScaler
+    import seaborn as sns
+    import pandas as pd
+    # # Data preprocessing (Scale the data)
+    # scaler = StandardScaler()
+    # X_scaled = scaler.fit_transform(X)
+
+    # Compute the correlations between the original features and PCA components
+    correlations = np.corrcoef(X_matminer.T, X_pca.T)
+
+    # Extract correlations between original features and PCA components
+    correlations = correlations[:X_matminer.shape[1], -X_pca.shape[1]:]
+    correlations_df = pd.DataFrame(correlations, index=matminer_colnames, columns=[f"PC{i+1}" for i in range(X_pca.shape[1])])
+
+    # Visualize the heatmap
+    plt.figure(figsize=(5, 15))
+    # sns.heatmap(correlations_df, annot=True, cmap="coolwarm")
+
+    fig, ax = plt.subplots()
+    im, cbar = sns.heatmap(correlations_df, annot=True, ax=ax,
+                    cmap="YlGn", cbarlabel="Correlation")
+    fig.tight_layout()
+    plt.title("Correlations between original features and PCA components")
+    plt.show()

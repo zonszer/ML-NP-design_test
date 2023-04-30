@@ -21,7 +21,7 @@ import torch
 
 from utils.parser_ import get_args
 from utils.utils_ import *
-from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis
+from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis, plot_PCA_matminer_heatmap
 # from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from train import *
 from sklearn.model_selection import train_test_split
@@ -141,7 +141,7 @@ def norm_y(y, is_MOBO, fn_dict):
     return y
 
 def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name,
-                  use_MI_filter, use_y_norm, is_MOBO, use_Xnorm_afterPCA):
+                  use_MI_filter, use_y_norm, is_MOBO, use_Xnorm_afterPCA, matminer_colnames):
     fn_dict = {}
     methods_tobe_combined = []
     X = np.array(X_compo)
@@ -165,6 +165,7 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name,
     X_pca = pca.fit_transform(X_norm)
     methods_tobe_combined.append(pca.transform)
     # plot_PCA_vis(X_pca, y)
+    plot_PCA_matminer_heatmap(np.array(X_compo), X_pca, matminer_colnames)
 
     #4. X norm after PCA
     if use_Xnorm_afterPCA:
@@ -207,7 +208,7 @@ def Main(args):
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
     X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim,
                                   args.data_path, args.use_MI_filter, args.use_y_norm,
-                                  args.is_MOBO, args.use_Xnorm_afterPCA)
+                                  args.is_MOBO, args.use_Xnorm_afterPCA, descs.columns.values)
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
