@@ -222,6 +222,9 @@ def plot_PCA_matminer_heatmap(X_matminer, X_pca, matminer_colnames):
     from sklearn.preprocessing import StandardScaler
     import seaborn as sns
     import pandas as pd
+
+    for i in range(len(matminer_colnames)):
+        matminer_colnames[i] = matminer_colnames[i].replace("MagpieData", "")
     # # Data preprocessing (Scale the data)
     # scaler = StandardScaler()
     # X_scaled = scaler.fit_transform(X)
@@ -231,15 +234,22 @@ def plot_PCA_matminer_heatmap(X_matminer, X_pca, matminer_colnames):
 
     # Extract correlations between original features and PCA components
     correlations = correlations[:X_matminer.shape[1], -X_pca.shape[1]:]
-    correlations_df = pd.DataFrame(correlations, index=matminer_colnames, columns=[f"PC{i+1}" for i in range(X_pca.shape[1])])
+    correlations_df = pd.DataFrame(correlations, index=matminer_colnames, columns=[f"PCA{i+1}" for i in range(X_pca.shape[1])])
+    correlations_df.dropna(axis=0, how='any', inplace=True)
+    correlations_df = correlations_df.sort_values('PCA1', ascending=False)
 
     # Visualize the heatmap
-    plt.figure(figsize=(5, 15))
-    # sns.heatmap(correlations_df, annot=True, cmap="coolwarm")
+    # plt.figure(figsize=(5, 15))
+    # fig, ax = plt.subplots()
+    # im, cbar = sns.heatmap(correlations_df, annot=True, ax=ax,
+    #                 cmap="YlGn", cbarlabel="Correlation")
+    # fig.tight_layout()
+    # plt.title("Correlations between original features and PCA components")
+    # plt.show()
 
-    fig, ax = plt.subplots()
-    im, cbar = sns.heatmap(correlations_df, annot=True, ax=ax,
-                    cmap="YlGn", cbarlabel="Correlation")
-    fig.tight_layout()
+    # Visualize the heatmap
+    plt.figure(figsize=(8, 55))
+    sns.heatmap(correlations_df, annot=True, cmap="RdBu_r")
     plt.title("Correlations between original features and PCA components")
     plt.show()
+

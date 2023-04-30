@@ -127,7 +127,7 @@ def MI_filtering_X(X, y):
     idx_union = np.unique(np.concatenate(idx_list_beforeMerge))  # Find the union
     X = X[:, idx_union]
     printc.blue('X desc shape after MI filtering:', X.shape[1])
-    return X, filter_byIdx(idx_union)
+    return X, filter_byIdx(idx_union), idx_union
 
 
 def norm_y(y, is_MOBO, fn_dict):
@@ -150,7 +150,7 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name,
 
     # 1. MI filtering:
     if use_MI_filter:
-        X, filter_method = MI_filtering_X(X, y)
+        X, filter_method, idx_union = MI_filtering_X(X, y)
         methods_tobe_combined.append(filter_method)
     else:
         pass
@@ -165,7 +165,9 @@ def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name,
     X_pca = pca.fit_transform(X_norm)
     methods_tobe_combined.append(pca.transform)
     # plot_PCA_vis(X_pca, y)
-    plot_PCA_matminer_heatmap(np.array(X_compo), X_pca, matminer_colnames)
+    # plot_PCA_matminer_heatmap(np.array(X_compo), X_pca, matminer_colnames)
+    # plot_PCA_matminer_heatmap(np.array(X_compo)[:, idx_union], X_pca, matminer_colnames[idx_union])
+
 
     #4. X norm after PCA
     if use_Xnorm_afterPCA:
