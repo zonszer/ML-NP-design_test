@@ -63,11 +63,14 @@ def plt_true_vs_pred(y_true_list, y_pred_list, y_uncer_list, title_str_list, col
     fig, axes = plt.subplots(1, 2, figsize=(5.5*2, 4.5))
     fs = 20
     scores, cal_methods = [], []
+
     for i in np.arange(len(axes)):
         ## inverse transform
         y_true = y_true_list[i][:, -1]
         y_pred = y_pred_list[i][:, -1]
         y_uncer = np.sqrt(y_uncer_list[i][:,-1])
+        scale_min = np.min(y_true) - np.mean(y_true)*0.32
+        scale_max = np.max(y_true) + np.mean(y_true)*0.32
 
         if 'correlation' in criterion:
             spearman = spearmanr(y_true, y_pred) [0]
@@ -84,7 +87,7 @@ def plt_true_vs_pred(y_true_list, y_pred_list, y_uncer_list, title_str_list, col
             raise TypeError("Invalid input. OPT: 'correlation', 'value' ")
 
         if not only_value:
-            lims1 = (0*0.9, 3*1.1)
+            lims1 = (0, scale_max*2)
             axes[i].scatter(y_true, y_pred, alpha = 0.3, c = color_list[i])
             axes[i].errorbar(y_true, y_pred, yerr = y_uncer, ms = 0,
                             ls = '', capsize = 2, alpha = 0.6,
@@ -96,8 +99,8 @@ def plt_true_vs_pred(y_true_list, y_pred_list, y_uncer_list, title_str_list, col
             axes[i].set_xlabel('Ground Truth', fontsize = fs)
             axes[i].set_ylabel('Prediction', fontsize = fs)
             axes[i].set_title(title, fontsize = fs)
-            axes[i].set_xlim(0.5 , 1.5)
-            axes[i].set_ylim(0.5 , 1.5)
+            axes[i].set_xlim(max(scale_min, 0), scale_max)
+            axes[i].set_ylim(max(scale_min, 0), scale_max)
             axes[i].tick_params(direction='in', length=5, width=1, labelsize = fs*.8, grid_alpha = 0.5)
             axes[i].grid(True, linestyle='-.')
 

@@ -9,7 +9,7 @@ from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plo
 
 # ================================   以下是单变量的部分   ===================================
 def elem1_train_and_plot(X, y, num_restarts, ker_lengthscale_upper, ker_var_upper, save_logfile, split_ratio):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, split_ratio)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=split_ratio)
 
     ker = GPy.kern.Matern52(input_dim=X_train.shape[1], ARD=True)  # Matern52有啥讲究吗？
     ker.lengthscale.constrain_bounded(1e-2, ker_lengthscale_upper)  # 超参数？（好像是posterior 得到的）
