@@ -40,7 +40,7 @@ def get_str_after_substring(text:str, substring:str):
     index = text.find(substring)
     if index >= 0:
         next_char = text[index + len(substring):]
-        return next_char
+        return substring + next_char
     else:
         return None
 

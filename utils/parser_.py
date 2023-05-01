@@ -44,6 +44,7 @@ parser.add_argument('--mc_samples_num', type=int, default=2048, help='input num 
 ## SOBO GP params:
 parser.add_argument('--ker_lengthscale_upper', type=float, default=25, help='ker.lengthscale upper limit')
 parser.add_argument('--ker_var_upper', type=float, default=100, help='ker.variance upper limit')
+parser.add_argument('--ucb_beta', type=float, default=0.1, help='ucb_beta')
 ## crossvalidation params:
 parser.add_argument('--split_ratio', type=float, default=0, help='split_ratio=test_size/(test_size+train_size')
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate')

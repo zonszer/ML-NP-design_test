@@ -224,8 +224,8 @@ def Main(args):
         if args.only_use_elem2:
             X, y = X[1:, :], y[1:, :]
         # 1:
-        cross_train_validation(X, y, args.Kfold, args.num_restarts,
-                               args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
+        # cross_train_validation(X, y, args.Kfold, args.num_restarts,
+        #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # 2：
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
         #                      args.ker_var_upper, save_file_instance,
@@ -235,13 +235,22 @@ def Main(args):
         # MOBO_one_batch(X, y, args.num_restarts,
         #                args.ref_point, args.q_num, args.bs, args.mc_samples_num,
         #                save_file_instance, fn_dict,
-        #                df_space_path=args.data_search_space)
+        #                df_space_path=args.data_search_space, 
+        #                ker_lengthscale_upper=args.ker_lengthscale_upper)
         
         # MOBO_batches(X, y, args.num_restarts,
         #             args.ref_point, args.q_num, args.bs, args.mc_samples_num,
         #             save_file_instance, fn_dict,
-        #             df_space_path=args.data_search_space, split_ratio=args.split_ratio)
-
+        #             df_space_path=args.data_search_space, split_ratio=args.split_ratio,
+        #             ker_lengthscale_upper=args.ker_lengthscale_upper)
+        
+        # 4: SOBO
+        SOBO_one_batch(X, y, args.num_restarts,
+                       args.ref_point, args.q_num, args.bs, args.mc_samples_num,
+                       save_file_instance, fn_dict,
+                       df_space_path=args.data_search_space, 
+                       ker_lengthscale_upper=args.ker_lengthscale_upper,
+                       beta=args.beta)
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)
     else:
