@@ -122,7 +122,7 @@ def get_candidates_pred(model, candidates, fn_dict):
             pred_mean[:, i] = -pred_mean[:, i]
         if 'std_scaler_y'+str(i) in fn_dict:
             pred_mean[:, i] = fn_dict['std_scaler_y'+str(i)].inverse_transform(pred_mean[:, i].reshape(-1, 1))[:, -1]
-    np.savetxt("pred_mean0.7.csv", pred_mean, delimiter=",")
+    np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
     return pred_mean
 
 
