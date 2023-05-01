@@ -111,7 +111,6 @@ def optimize_qehvi_and_get_observation(model, train_X, train_obj, sampler, num_r
         print('idx are:', new_obj_idx)
     else:
         new_obj = None
-
     return new_x, new_obj
 
 def get_candidates_pred(model, candidates, fn_dict):
@@ -121,7 +120,8 @@ def get_candidates_pred(model, candidates, fn_dict):
         # assert '''y1 is y['slope relative to Ru']'''
         if i == 1:
             pred_mean[:, i] = -pred_mean[:, i]
-        pred_mean[:, i] = fn_dict['std_scaler_y'+str(i)].inverse_transform(pred_mean[:, i].reshape(-1, 1))[:, -1]
+        if 'std_scaler_y'+str(i) in fn_dict:
+            pred_mean[:, i] = fn_dict['std_scaler_y'+str(i)].inverse_transform(pred_mean[:, i].reshape(-1, 1))[:, -1]
     np.savetxt("pred_mean0.7.csv", pred_mean, delimiter=",")
     return pred_mean
 
@@ -459,6 +459,7 @@ def SOBO_one_batch(X_train, y_train, num_restarts,
                 # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
                 # sequential=False,
             )
+            get_candidates_pred(model_ucb, candidates, fn_dict)
             new_x_ucb = unnormalize(candidates.detach(), bounds=bounds)
             # update training points
             train_x_ucb = torch.cat([train_x_ucb, new_x_ucb])
