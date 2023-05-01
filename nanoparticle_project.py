@@ -183,7 +183,7 @@ def grid_add_elem_ratio(grid_init, p_index, set_ratio, sum_of2elems_ratio):
             grid_init[row, p_index[row][elem_idx]] = set_ratio[elem_idx]*0.1 * sum_of2elems_ratio
     return grid_init
     
-def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(4,6),(3,7),(1,9)], Ru_ratio=0.1):   #list:
+def get_stoichiometric_formulas(n_components, npoints=None, set_ratios=None, Ru_ratio=None):   #list:
     """
     Generates anonymous stoichiometric formulas for a set
     of n_components with specified coefficients
@@ -196,8 +196,8 @@ def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(4,6),(3,7)
         (list): unique stoichiometric formula from an
             allowed grid of integers.
     """
-    sum_of2elems_ratio = 1-Ru_ratio
-    if set_ratios:
+    if Ru_ratio is not None:
+        sum_of2elems_ratio = 1-Ru_ratio
         for i in set_ratios:
             if sum(i) != 10 or len(i) != 2:
                 raise ValueError("The sum of the ratios must be 10")
@@ -211,12 +211,13 @@ def get_stoichiometric_formulas(n_components, npoints=6, set_ratios=[(4,6),(3,7)
             
         grid = np.concatenate(grid_list, axis=0)
 
-    else:       #TODO: rewrite
+    else:      
         grid = np.linspace(0,1,npoints)
         args = [grid for _ in range(n_components-1)]
-        # stoics = np.array(list(itertools.product(*args)))       #生成point值的全排列
-        p_index = get_fully_permutation_index(n_components, grid_elems_num-1)     #-1:because 1 elem(RU) is fixed
-        # print(grid[p_index])
+        stoics = np.array(list(itertools.product(*args)))       #生成point值的全排列
+        stoics = stoics[ stoics.sum(axis=1) <= 1.0 ]
+        stoics = np.hstack((stoics,1-stoics.sum(axis=1).reshape(-1,1)))
+        grid = stoics
 
     return grid
 

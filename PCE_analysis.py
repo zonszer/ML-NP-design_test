@@ -27,8 +27,8 @@ from train import *
 from sklearn.model_selection import train_test_split
 
 
-def Preprocessing(path, col_labels, data_path):
-    df = get_data(path, col_labels) #
+def Preprocessing(data_path, col_labels=None):
+    df = get_data(data_path, col_labels) #
     if 'OER' in data_path:
         df = clean_df_OER(df)
         df = add_formula_col_OER(df)
@@ -198,7 +198,7 @@ def select_train_elems():
 
 def Main(args):
     # 1. Import Data and Preprocessing 
-    df = Preprocessing(args.data_path, args.col_labels, args.data_path)
+    df = Preprocessing(args.data_path, args.col_labels)
 
     # 2 .Build composition descriptors (from `matminer`)
     descs = Add_extract_descriptors(df, args.use_concentration)
