@@ -327,7 +327,8 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
 
             torch.cuda.empty_cache()
             distmin_idx = compute_L2dist(recommend_descs, all_descs)
-            save_recommend_comp(distmin_idx, df_space, recommend_descs, all_descs, df_space_path)      #opt: all_descs
+            save_recommend_comp(distmin_idx, df_space, recommend_descs,
+                                df_space_path=df_space_path)      #opt: all_descs
 
 
 def MOBO_batches(X_train, y_train, num_restarts,
@@ -464,11 +465,11 @@ def SOBO_one_batch(X_train, y_train, num_restarts,
             torch.cuda.empty_cache()
             distmin_idx = compute_L2dist(recommend_descs, all_descs)
             save_recommend_comp(distmin_idx, df_space, recommend_descs, 
-                                all_descs=all_descs, df_space_path=df_space_path)      #opt: all_descs
+                                df_space_path=df_space_path)      #opt: all_descs
 
 
 def save_recommend_comp(idx, df_space, recommend_descs, all_descs=None, df_space_path=None):
-    str1 = get_str_after_substring(df_space_path, 'PCE')
+    str1 = get_str_after_substring(df_space_path, 'Ru')
     df_space.iloc[idx , :].to_csv("recommend_comp{}.csv".format(str1), index=True, header=True)
     print(df_space.iloc[idx , 0:4])
     df = pd.DataFrame(recommend_descs.cpu().numpy())

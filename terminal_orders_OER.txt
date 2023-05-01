@@ -153,7 +153,11 @@ python -utt PCE_analysis.py --id=MassActivity_ls10-PCA15 --data_path=data/OER-Su
 
 python -utt PCE_analysis.py --id=Slope_ls10-PCA15 --data_path=data/OER-Summary-LZ.xlsx --model=slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=8 --PCA_dim=15 --ker_lengthscale_upper=10 --ker_var_upper=100 --use_MI_filter --use_Xnorm_afterPCA
 
+====for predict new data=====
+python -utt PCE_analysis.py  --id=MOBO_onebatch07 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=15 --ker_lengthscale_upper=10 --bs=1024 --q_num=7 --mc_samples_num=1024 --data_search_space=data/SearchSpace_3elems_Ru0.7.pkl --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA
 
+python -utt PCE_analysis.py  --id=MOBO_onebatch08 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=15 --ker_lengthscale_upper=10 --bs=1024 --q_num=7 --mc_samples_num=1024 --data_search_space=data/SearchSpace_3elems_Ru0.8.pkl --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA
 
+python -utt PCE_analysis.py  --id=MOBO_onebatch09 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=15 --ker_lengthscale_upper=10 --bs=1024 --q_num=7 --mc_samples_num=1024 --data_search_space=data/SearchSpace_3elems_Ru0.9.pkl --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA
 
 
