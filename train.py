@@ -12,7 +12,8 @@ import time
 
 import torch
 from botorch import fit_gpytorch_mll
-from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement
+from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement, qUpperConfidenceBound
+# from botorch.acquisition import qExpectedImprovement, qNoisyExpectedImprovement
 from botorch.sampling import SobolQMCNormalSampler
 from botorch.utils.multi_objective.pareto import is_non_dominated
 from botorch.utils.multi_objective.hypervolume import Hypervolume
@@ -27,8 +28,9 @@ from botorch.optim import optimize_acqf_discrete
 from botorch.models.gp_regression import SingleTaskGP
 from botorch.models.transforms.outcome import Standardize
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
-from gpytorch.kernels import MaternKernel
-from gpytorch.priors import Interval
+from gpytorch.priors import UniformPrior
+from gpytorch.kernels import MaternKernel, ScaleKernel
+from gpytorch.constraints import Interval
 from botorch.utils.transforms import unnormalize, normalize
 from botorch.sampling.normal import NormalMCSampler
 from botorch.utils.multi_objective.box_decompositions.dominated import (
@@ -54,8 +56,8 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 def generate_bounds(X, y, dim_X, num_objectives, scale=(0, 1)):
     bounds = np.zeros((2, dim_X))
     for i in range(dim_X):
-        bounds[0][i] = X[:, i].min() * 1.5 # min of bound   #TODO: can not deine the bound of the problem determailtically
-        bounds[1][i] = X[:, i].max() * 1.5  # max of bound
+        bounds[0][i] = X[:, i].min() * 1.4 # min of bound   #TODO: can not deine the bound of the problem determailtically
+        bounds[1][i] = X[:, i].max() * 1.4  # max of bound
     return bounds
 
 
@@ -204,8 +206,12 @@ def get_idx_and_corObj(new_x, all_descs, **kwargs):
 def initialize_model(train_x, train_obj, bounds, lengthscale, state_dict=None):
     # define models for objective and constraint
     train_x = normalize(train_x, bounds)
-    model = SingleTaskGP(train_x, train_obj, outcome_transform=Standardize(m=train_obj.shape[-1]))  #TODO: maybe occur bug in outcome_transform
-    model.covar_module = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1], lengthscale_prior=lengthscale)
+    ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1]).cuda()
+    ker.lengthscale_constraint = lengthscale
+    ker = ScaleKernel(ker)
+    model = SingleTaskGP(train_x, train_obj, covar_module=ker,
+                         outcome_transform=Standardize(m=train_obj.shape[-1]))  #TODO: maybe occur bug in outcome_transform
+
     # Load state_dict if it is provided
     if state_dict is not None:
         model.load_state_dict(state_dict)
@@ -397,7 +403,7 @@ def MOBO_batches(X_train, y_train, num_restarts,
             hvs_qehvi.append(compute_hv(hv, train_obj_qehvi))
             hvs_random.append(compute_hv(hv, train_obj_random))
 
-            mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi, bounds, lengthscale=Interval(0.01, ker_lengthscale_upper)) 
+            mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi, bounds, lengthscale=Interval(0.01, ker_lengthscale_upper))
 
             t1 = time.monotonic()
 
@@ -427,15 +433,16 @@ def SOBO_one_batch(X_train, y_train, num_restarts,
         print(f"\nTrial {trial:>2}", end="\n")
         mll_ucb, model_ucb = initialize_model(train_x_ucb, train_obj_ucb, bounds, 
                                                   lengthscale=Interval(0.01, ker_lengthscale_upper))
-        ucb = UpperConfidenceBound(model_ucb, beta=beta) 
+        # ucb = UpperConfidenceBound(model_ucb, beta=beta)
+        ucb_qkg_acqf = qUpperConfidenceBound(model_ucb, beta=beta)
 
         for __ in range(1, 2):
             fit_gpytorch_mll(mll_ucb)
             new_sampler = SearchSpace_Sampler(fn_dict, df_space, post_mc_samples)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
 
-            new_x_ucb, _ = optimize_acqf_discrete(
-                acq_function=ucb,
+            candidates, _ = optimize_acqf_discrete(
+                acq_function=ucb_qkg_acqf,
                 q=q_num,
                 choices=normalize(all_descs, bounds),
                 max_batch_size=bs,
@@ -445,6 +452,7 @@ def SOBO_one_batch(X_train, y_train, num_restarts,
                 # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
                 # sequential=False,
             )
+            new_x_ucb = unnormalize(candidates.detach(), bounds=bounds)
             # update training points
             train_x_ucb = torch.cat([train_x_ucb, new_x_ucb])
             # train_obj_ucb = torch.cat([train_obj_ucb, new_obj_qehvi])         #not used for now:date4.7

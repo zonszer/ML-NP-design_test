@@ -112,6 +112,10 @@ python -utt PCE_analysis.py --id=best-A10-usey_norm --data_path=data/PCE1.xlsx -
 
 python -utt PCE_analysis.py --id=best-A10-usey_norm --data_path=data/PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration --seed=52
 
+====for predict new data=====
+python -utt PCE_analysis.py --id=test_SOBO_onebatch --data_path=data/PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --PCA_dim=8 --ker_lengthscale_upper=25 --ker_var_upper=100 --ucb_beta=0.1 --bs=1024 --q_num=5
+--mc_samples_num=1024 --data_search_space=data/SearchSpace_3elems_PCE.pkl	TODO: can not use --use_concentration 
+
 
 
 
