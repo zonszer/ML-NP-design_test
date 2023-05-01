@@ -213,11 +213,15 @@ def get_stoichiometric_formulas(n_components, npoints=None, set_ratios=None, Ru_
 
     else:      
         grid = np.linspace(0,1,npoints)
-        args = [grid for _ in range(n_components-1)]
+        args = [grid for _ in range(n_components)]
         stoics = np.array(list(itertools.product(*args)))       #生成point值的全排列
-        stoics = stoics[ stoics.sum(axis=1) <= 1.0 ]
-        stoics = np.hstack((stoics,1-stoics.sum(axis=1).reshape(-1,1)))
-        grid = stoics
+        stoics = stoics[ stoics.sum(axis=1) == 1.0 ]
+        # Count the number of nonzero elements in each row
+        nonzero_count = np.count_nonzero(stoics, axis=1)
+        # Select the rows where the number of nonzero elements is not equal to 2
+        filtered_stoics = stoics[nonzero_count == 2, :]
+        # filtered_stoics = np.hstack((filtered_stoics, 1-filtered_stoics.sum(axis=1).reshape(-1,1)))
+        grid = filtered_stoics
 
     return grid
 
