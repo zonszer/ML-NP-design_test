@@ -102,7 +102,7 @@ python -utt PCE_analysis.py --id=bestA-ls25-var25 --data_path=data/PCE1.xlsx --m
 python -utt PCE_analysis.py --id=bestA-ls25-var10 --data_path=data/PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=assigned --num_restarts=12 --Kfold=5 --PCA_dim=8 --ker_lengthscale_upper=25 --ker_var_upper=10 --use_concentration
 
 =======best model：======
-python -utt PCE_analysis.py --id=best-A10 --data_path=data/PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=25 --ker_var_upper=100 --use_concentration 
+python -utt PCE_analysis.py --id=best-A10 --data_path=data/PCE1.xlsx --model=Average-Ratio-over-Control --PCA_dim_select_method=auto --num_restarts=12 --Kfold=5 --PCA_dim=0.9999 --ker_lengthscale_upper=15 --ker_var_upper=100 --use_concentration 
 
 
 
