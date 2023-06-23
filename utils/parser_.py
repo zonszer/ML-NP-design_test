@@ -15,7 +15,7 @@ parser.add_argument('--col_labels', default=None, help="if excel has col name th
                                                         'Mass activity at 1.53V', 'slope relative to Ru']")
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')
-parser.add_argument('--data_path', default='data/OER-Summary-LZ.xlsx', help='  ')
+parser.add_argument('--data_path', default='data/OER-Summary-LZ-1iters.xlsx', help='  ')    #OER-Summary-LZ
 parser.add_argument('--model', '--y_col_name', default='Mass-activity-at-1.53V+slope-relative-to-Ru',
                     help='OPT1 for PCE: Highest-Ratio-over-Control  OR  Average-Ratio-over-Control /n \
                           OPT2.1 for OER: {Mass-activity-at-1.53V} /n \

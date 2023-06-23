@@ -74,7 +74,7 @@ def add_formula_col_OER(daf):
     for i in range(len(spt_proportions)):
         formula = ''
         for j in range(len(spt_proportions[i])):
-            spt_proportions[i][j] = str(round(int(spt_proportions[i][j])*0.1, 2))            
+            spt_proportions[i][j] = str(round(float(spt_proportions[i][j])*0.1, 4))
             formula += spt_materials[i][j] + spt_proportions[i][j]
         formula_list.append(formula)
     daf['formula'] = [daf['material'][0]] + formula_list   #为pd数据格式加了一列formula数据
@@ -222,7 +222,7 @@ def Main(args):
         #                      args.ker_var_upper, save_file_instance,
         #                      args.split_ratio)
 
-        # 2: SOBO
+        #2: SOBO
         SOBO_one_batch(X, y, args.num_restarts,
                        args.ref_point, args.q_num, args.bs, args.mc_samples_num,
                        save_file_instance, fn_dict,
