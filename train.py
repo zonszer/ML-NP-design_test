@@ -96,7 +96,7 @@ def optimize_qehvi_and_get_observation(model, train_X, train_obj, sampler, num_r
         q=q_num,
         choices=normalize(all_descs, bounds),
         max_batch_size=max_batch_size,
-        unique=False,                   #TODO: if train changed to True
+        unique=True,                   #TODO: if train changed to True
         # num_restarts=num_restarts,
         # raw_samples=raw_samples,
         # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},
@@ -209,12 +209,12 @@ def get_idx_and_corObj(new_x, all_descs, **kwargs):
 def initialize_model(train_x, train_obj, bounds, lengthscale, state_dict=None):
     # define models for objective and constraint
     train_x = normalize(train_x, bounds)
-    ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1]).cuda()
-    ker.lengthscale_constraint = lengthscale
+    ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1], lengthscale_constraint=lengthscale).cuda()
+    # ker.lengthscale_constraint = lengthscale    #TODO: lengthscale_constraint is seemingly useless
     ker = ScaleKernel(ker)
     model = SingleTaskGP(train_x, train_obj, covar_module=ker,
                          outcome_transform=Standardize(m=train_obj.shape[-1]))  #TODO: maybe occur bug in outcome_transform
-
+    model_parameters = model.state_dict()
     # Load state_dict if it is provided
     if state_dict is not None:
         model.load_state_dict(state_dict)
@@ -308,6 +308,9 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
         # run N_BATCH rounds of BayesOpt after the initial random batch
         for __ in range(1, 2):
             fit_gpytorch_mll(mll_qehvi)
+            # file_path = "output.txt"  # The path to the output file
+            # with open(file_path, 'a') as file:
+            #     file.write(str(model_qehvi.covar_module.base_kernel.lengthscale))
             new_sampler = SearchSpace_Sampler(fn_dict, df_space, post_mc_samples)        #SearchSpace_Sampler 这class没啥用，就用了其中一个PCA，代码还没改
             all_descs = torch.DoubleTensor(new_sampler.PCA(df_space)).cuda()
             new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([post_mc_samples]))
@@ -335,14 +338,17 @@ def MOBO_one_batch(X_train, y_train, num_restarts,
                                 df_space_path=df_space_path, iter="1iters")      #opt: all_descs
 
 
-def MOBO_batches(X_train, y_train, num_restarts,
-                ref_point, q_num, bs, post_mc_samples, 
-                save_file_instance, fn_dict,
+def MOBO_batches(X_train, y_train, 
+                save_file_instance, 
+                fn_dict,
+                ref_point, q_num, bs, mc_samples_num, 
+                num_restarts,
                 split_ratio, ker_lengthscale_upper, 
-                df_space=None):
+                df_space=None,
+                **kwargs):
     N_TRIALS = 1
-    N_BATCH = 25
-    MC_SAMPLES = post_mc_samples
+    N_BATCH = 100
+    MC_SAMPLES = mc_samples_num
     verbose = True
 
     hvs_qehvi_all = []
@@ -355,14 +361,17 @@ def MOBO_batches(X_train, y_train, num_restarts,
         hvs_qehvi, hvs_random = [], []
         
         # split data for valideation
-        if args.split_ratio != 0:
+        if split_ratio != 0:
             train_x_qehvi, train_obj_qehvi = split_for_val(X, y, ini_size=split_ratio)
         else:
             train_x_qehvi, train_obj_qehvi = X, y
         # train_x_qparego, train_obj_x_qparego = train_x_qehvi, train_obj_qehvi
         train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
 
-        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, train_obj_qehvi, bounds, lengthscale=Interval(0.01, ker_lengthscale_upper))
+        mll_qehvi, model_qehvi = initialize_model(train_x_qehvi, 
+                                                  train_obj_qehvi, 
+                                                  bounds, 
+                                                  lengthscale=Interval(0.01, ker_lengthscale_upper))
         # mll_qparego, model_qparego = initialize_model(train_x_qehvi, train_obj_qehvi)
 
         init_volume = compute_hv(hv, train_obj_qehvi)
@@ -385,7 +394,6 @@ def MOBO_batches(X_train, y_train, num_restarts,
                 ref_point_=ref_point, all_descs=X, max_batch_size=bs,
                 all_y=y, validate=True,
                 fn_dict=fn_dict,
-
             )
             #new_x, new_obj = optimize_qnparego_and_get_observation(
             #    model=model_qehvi, train_obj=train_obj_qehvi, sampler=new_sampler_random, num_restarts=num_restarts, 
@@ -453,7 +461,7 @@ def SOBO_one_batch(X_train, y_train, num_restarts,
                 q=q_num,
                 choices=normalize(all_descs, bounds),
                 max_batch_size=bs,
-                unique=False,                   #TODO: if train changed to True
+                unique=True,                   #TODO: if train changed to True
                 # num_restarts=num_restarts,
                 # raw_samples=raw_samples,
                 # options={"batch_limit": 5, "maxiter": 200, "nonnegative": False},

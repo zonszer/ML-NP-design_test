@@ -247,13 +247,13 @@ def Main(args):
                        save_file_instance, fn_dict,
                        df_space_path=args.data_search_space,
                        ker_lengthscale_upper=args.ker_lengthscale_upper)
+       
+        # kwargs = vars(args)
+        # MOBO_batches(X_train=X, y_train=y, 
+        #              save_file_instance=save_file_instance, 
+        #              fn_dict=fn_dict, 
+        #              **kwargs)
         
-        # MOBO_batches(X, y, args.num_restarts,
-        #             args.ref_point, args.q_num, args.bs, args.mc_samples_num,
-        #             save_file_instance, fn_dict,
-        #             df_space_path=args.data_search_space, split_ratio=args.split_ratio,
-        #             ker_lengthscale_upper=args.ker_lengthscale_upper)
-
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)
     else:

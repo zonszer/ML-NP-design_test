@@ -12,15 +12,15 @@ parser.add_argument('--model_dir', default='Models/', help='folder to output mod
 parser.add_argument('--id', default='XXXX', help='name')
 parser.add_argument('--col_labels', default=None, help="if excel has col name then use None, else: "
                                                        "['material', 'Elemental proportions', \
-                                                        'Mass activity at 1.53V', 'slope relative to Ru']")
+                                                        'Mass activity at 1.43V', 'slope relative to Ru']")
 # parser.add_argument('--col_labels', default= "['Element', 'Highest Ratio over Control', \
 #                                              'Average Ratio over Control', 'Concentration']", help='   ')
 parser.add_argument('--data_path', default='data/OER-Summary-LZ-1iters.xlsx', help='  ')    #OER-Summary-LZ
-parser.add_argument('--model', '--y_col_name', default='Mass-activity-at-1.53V+slope-relative-to-Ru',
+parser.add_argument('--model', '--y_col_name', default='Mass-activity-at-1.43V+slope-relative-to-Ru',
                     help='OPT1 for PCE: Highest-Ratio-over-Control  OR  Average-Ratio-over-Control /n \
-                          OPT2.1 for OER: {Mass-activity-at-1.53V} /n \
+                          OPT2.1 for OER: {Mass-activity-at-1.43V} /n \
                           OPT2.2 for OER: {slope-relative-to-Ru} /n \
-                          OPT2.3 for OER: {Mass-activity-at-1.53V+slope-relative-to-Ru}  /n')
+                          OPT2.3 for OER: {Mass-activity-at-1.43V+slope-relative-to-Ru}  /n')
 ## preprocess params:
 parser.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
 ## MOBO params:

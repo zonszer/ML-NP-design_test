@@ -161,3 +161,8 @@ python -utt PCE_analysis.py  --id=MOBO_onebatch08 --data_path=data/OER-Summary-L
 python -utt PCE_analysis.py  --id=MOBO_onebatch09 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=15 --ker_lengthscale_upper=10 --bs=1024 --q_num=7 --mc_samples_num=1024 --data_search_space=data/SearchSpace_3elems_Ru0.9.pkl --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA
 
 
+====for predict new data=====6.28new settings==========
+python -utt PCE_analysis.py  --id=MOBO_onebatch07 --data_path=data/OER-Summary-LZ.xlsx --model=Mass-activity-at-1.53V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=15 --ker_lengthscale_upper=10 --bs=1024 --q_num=7 --mc_samples_num=1024 --data_search_space=data/SearchSpace_3elems_Ru0.7.pkl --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA
+
+
+
