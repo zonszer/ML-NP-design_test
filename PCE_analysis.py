@@ -217,6 +217,11 @@ def Main(args, args_general, args_pre, args_BO):
     ## 3.2 split data into train and test, and train model
 
     kwargs = vars(args_BO)
+    Model = MLModel(X_train=X, y_train=y,
+                    save_file_instance=save_file_instance,
+                    fn_dict=fn_dict,
+                    df_space_path=args.data_search_space,
+                    **kwargs)
     if args.is_SOBO:
         assert 'PCE' in args.data_path
         # cross_train_validation(X, y, args.Kfold, args.num_restarts,
@@ -224,12 +229,6 @@ def Main(args, args_general, args_pre, args_BO):
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
         #                      args.ker_var_upper, save_file_instance,
         #                      args.split_ratio)
-
-        Model = MLModel(X_train=X, y_train=y, 
-                     save_file_instance=save_file_instance, 
-                     fn_dict=fn_dict,
-                     df_space_path=args.data_search_space,
-                     **kwargs)
         Model.SOBO_one_batch()
 
     elif args.is_MOBO:
@@ -244,11 +243,6 @@ def Main(args, args_general, args_pre, args_BO):
         #                      args.ker_var_upper, save_file_instance,
         #                      args.split_ratio)
         # 3：
-        Model = MLModel(X_train=X, y_train=y, 
-                     save_file_instance=save_file_instance, 
-                     fn_dict=fn_dict,
-                     df_space_path=args.data_search_space,
-                     **kwargs)
         Model.MOBO_one_batch()
         # Model.MOBO_batches()
         
