@@ -1,9 +1,12 @@
 import argparse, datetime
 from utils.utils_ import *
+from argparse import Namespace
 
 # parser：
-parser = argparse.ArgumentParser(description='GP')
+parser = argparse.ArgumentParser(description='general')
 
+parser_preprocessing = argparse.ArgumentParser(description='preprocessing')
+parser_BO = argparse.ArgumentParser(description='BO')
 # str
 # dataset params:
 parser.add_argument('--model_dir', default='Models/', help='folder to output model checkpoints')
@@ -22,47 +25,49 @@ parser.add_argument('--model', '--y_col_name', default='Mass-activity-at-1.43V+s
                           OPT2.2 for OER: {slope-relative-to-Ru} /n \
                           OPT2.3 for OER: {Mass-activity-at-1.43V+slope-relative-to-Ru}  /n')
 ## preprocess params:
-parser.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
+parser_preprocessing.add_argument('--PCA_dim_select_method', default='auto', help='Other options: assigned')
 ## MOBO params:
-parser.add_argument('--ref_point', default=None, help='   ')
-parser.add_argument('--data_search_space', default='data/SearchSpace_3elems_Ru0.8.pkl', help='  ')
+parser_BO.add_argument('--ref_point', default=None, help='   ')
+parser_BO.add_argument('--data_search_space', default=None, help='  ')
 
 # int
 parser.add_argument('--seed', type=int, default=0, help='random seed (default: 0)')
 ## SOBO GP params:
-parser.add_argument('--num_restarts', type=int, default=5, help='number of epochs to train')
-parser.add_argument('--cycle_num', type=float, default=0, help='cycle_num')
+parser_BO.add_argument('--num_restarts', type=int, default=5, help='number of epochs to train')
+parser_BO.add_argument('--cycle_num', type=float, default=0, help='cycle_num')
 ## preprocess params:
-parser.add_argument('--Kfold', type=int, default=5, help='number of hard neg in loss')
-parser.add_argument('--PCA_dim', type=float, default=0.98, help='input: float or int. n compoents of PCA when input')
+parser_preprocessing.add_argument('--Kfold', type=int, default=5, help='number of hard neg in loss')
+parser_preprocessing.add_argument('--PCA_dim', type=float, default=0.98, help='input: float or int. n compoents of PCA when input')
 ## MOBO params:
-parser.add_argument('--bs', type=int, default=2048, metavar='BS', help='input batch size for training')
-parser.add_argument('--q_num', type=int, default=5, help='output number for each query')
-parser.add_argument('--mc_samples_num', type=int, default=2048, help='input num of num_mc_samples for opt')
+parser_BO.add_argument('--bs', type=int, default=2048, metavar='BS', help='input batch size for training')
+parser_BO.add_argument('--q_num', type=int, default=5, help='output number for each query')
+parser_BO.add_argument('--mc_samples_num', type=int, default=2048, help='input num of num_mc_samples for opt')
 
 # float
 ## SOBO GP params:
-parser.add_argument('--ker_lengthscale_upper', type=float, default=25, help='ker.lengthscale upper limit')
-parser.add_argument('--ker_var_upper', type=float, default=100, help='ker.variance upper limit')
-parser.add_argument('--ucb_beta', type=float, default=0.1, help='ucb_beta')
+parser_BO.add_argument('--ker_lengthscale_upper', type=float, default=25, help='ker.lengthscale upper limit')
+parser_BO.add_argument('--ker_var_upper', type=float, default=100, help='ker.variance upper limit')
+parser_BO.add_argument('--ucb_beta', type=float, default=0.1, help='ucb_beta')
 ## crossvalidation params:
-parser.add_argument('--split_ratio', type=float, default=0, help='split_ratio=test_size/(test_size+train_size')
+parser_BO.add_argument('--split_ratio', type=float, default=0, help='split_ratio=test_size/(test_size+train_size')
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate')
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate')
 
 # bool
 parser.add_argument('--is_MOBO', default=False, action='store_true',
                     help='settings of MOBO')
+parser.add_argument('--is_SOBO', default=False, action='store_true',
+                    help='settings of MOBO')
 ## preprocess params:
-parser.add_argument('--use_concentration', default=False, action='store_true',
+parser_preprocessing.add_argument('--use_concentration', default=False, action='store_true',
                     help='turns off flip and 90deg rotation augmentation')
-parser.add_argument('--only_use_elem2', default=False, action='store_true',
+parser_preprocessing.add_argument('--only_use_elem2', default=False, action='store_true',
                     help='turns off flip and 90deg rotation augmentation')
-parser.add_argument('--use_MI_filter', default=False, action='store_true',
+parser_preprocessing.add_argument('--use_MI_filter', default=False, action='store_true',
                     help='turns off flip and 90deg rotation augmentation')
-parser.add_argument('--use_y_norm', default=False, action='store_true',
+parser_preprocessing.add_argument('--use_y_norm', default=False, action='store_true',
                     help='turns off flip and 90deg rotation augmentation')
-parser.add_argument('--use_Xnorm_afterPCA', default=False, action='store_true',
+parser_preprocessing.add_argument('--use_Xnorm_afterPCA', default=False, action='store_true',
                     help='turns off flip and 90deg rotation augmentation')
 
 
@@ -76,10 +81,16 @@ def clean_args(args) -> list:
 
 def get_args(ipynb=False):
     if ipynb:  # for jupyter so that default args are passed
-        args = parser.parse_args([])
+        args, remaining = parser.parse_known_args([])
+        args_BO = parser_BO.parse_args(remaining)
+        args_preprocessing = parser_preprocessing.parse_args(remaining)
     else:
-        args = parser.parse_args()
-    printc.yellow('Parsed options:\n{}\n'.format(vars(args)))
+        args, remaining = parser.parse_known_args()
+        args_BO, remaining = parser_BO.parse_known_args(remaining)
+        args_preprocessing = parser_preprocessing.parse_args(remaining)
+    printc.yellow('Parsed_general options:\n{}\n'.format(vars(args)))
+    printc.yellow('Parsed_preprocessing options:\n{}\n'.format(vars(args_preprocessing)))
+    printc.yellow('Parsed_BO options:\n{}\n'.format(vars(args_BO)))
 
     # show in txt file(data neme):
     txt = []
@@ -87,14 +98,13 @@ def get_args(ipynb=False):
     current_time = current_time.strftime("%m%d-%H_%M")
     txt += ['id:' + str(args.id)]
     txt += ['T:' + current_time]
-    txt += ['num_ep:' + str(args.num_restarts)]
-    if args.cycle_num: txt += ['cycle_num:' + str(args.cycle_num)]
-    txt += ['bs:' + str(args.bs)]
+    txt += ['num_ep:' + str(args_BO.num_restarts)]
+    if args_BO.cycle_num: txt += ['cycle_num:' + str(args_BO.cycle_num)]
+    txt += ['bs:' + str(args_BO.bs)]
     txt += ['seed:' + str(args.seed)]
     txt += ['model:' + str(args.model)]
-    txt += ['PCA_dim:' + str(args.PCA_dim)]
-    txt += ['PCA_dim_select_method:' + args.PCA_dim_select_method]
-    txt += ['seed:' + str(args.seed)]
+    txt += ['PCA_dim:' + str(args_preprocessing.PCA_dim)]
+    txt += ['PCA_dim_select_method:' + args_preprocessing.PCA_dim_select_method]
     # txt += ['Data_path:' + args.data_path]
     model_name = '_'.join([str(c) for c in txt])
     # if args.Kfold: txt += ['Kfold:' + str(args.Kfold)]
@@ -109,6 +119,17 @@ def get_args(ipynb=False):
     if model_name in [getbase(c) for c in glob(pjoin(args.model_dir, '*'))]:
         printc.red('WARNING: MODEL', model_name, '\nALREADY EXISTS')
     args = clean_args(args)
+    args_all = combine_args(args, args_preprocessing, args_BO)
 
-    return args
 
+    return args_all, args, args_preprocessing, args_BO
+
+
+def combine_args(args_general, args_preprocessing, args_BO):
+    args = vars(args_general)
+    args_preprocessing = vars(args_preprocessing)
+    args_BO = vars(args_BO)
+    args.update(args_preprocessing)
+    args.update(args_BO)
+    args_all = Namespace(**args)
+    return args_all

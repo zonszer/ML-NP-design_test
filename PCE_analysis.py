@@ -197,7 +197,7 @@ def select_train_elems():
     return X_inp_list[0][elem1_indx_random], y_outp_list[0][elem1_indx_random] #只对num_elements==3的数据进行训练 #(并且只用其中随机抽取的20个元素)
                                                 
 
-def Main(args):
+def Main(args, args_general, args_pre, args_BO):
     # 1. Import Data and Preprocessing 
     df = Preprocessing(args.data_path, args.col_labels)
 
@@ -215,22 +215,25 @@ def Main(args):
     printc.blue('PCA dimensions:', X.shape[1])
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
-    if 'PCE' in args.data_path:
+
+    kwargs = vars(args_BO)
+    if args.is_SOBO:
+        assert 'PCE' in args.data_path
         # cross_train_validation(X, y, args.Kfold, args.num_restarts,
         #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
         #                      args.ker_var_upper, save_file_instance,
         #                      args.split_ratio)
 
-        #2: SOBO
-        SOBO_one_batch(X, y, args.num_restarts,
-                       args.ref_point, args.q_num, args.bs, args.mc_samples_num,
-                       save_file_instance, fn_dict,
-                       df_space_path=args.data_search_space,
-                       ker_lengthscale_upper=args.ker_lengthscale_upper,
-                       beta=args.ucb_beta)
+        Model = MLModel(X_train=X, y_train=y, 
+                     save_file_instance=save_file_instance, 
+                     fn_dict=fn_dict,
+                     df_space_path=args.data_search_space,
+                     **kwargs)
+        Model.SOBO_one_batch()
 
-    elif 'OER' in args.data_path:
+    elif args.is_MOBO:
+        assert 'OER' in args.data_path
         if args.only_use_elem2:
             X, y = X[1:, :], y[1:, :]
         # 1:
@@ -240,19 +243,14 @@ def Main(args):
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
         #                      args.ker_var_upper, save_file_instance,
         #                      args.split_ratio)
-
         # 3：
-        MOBO_one_batch(X, y, args.num_restarts,
-                       args.ref_point, args.q_num, args.bs, args.mc_samples_num,
-                       save_file_instance, fn_dict,
-                       df_space_path=args.data_search_space,
-                       ker_lengthscale_upper=args.ker_lengthscale_upper)
-       
-        # kwargs = vars(args)
-        # MOBO_batches(X_train=X, y_train=y, 
-        #              save_file_instance=save_file_instance, 
-        #              fn_dict=fn_dict, 
-        #              **kwargs)
+        Model = MLModel(X_train=X, y_train=y, 
+                     save_file_instance=save_file_instance, 
+                     fn_dict=fn_dict,
+                     df_space_path=args.data_search_space,
+                     **kwargs)
+        Model.MOBO_one_batch()
+        # Model.MOBO_batches()
         
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)
@@ -287,7 +285,10 @@ if __name__ == '__main__':
     current_time = datetime.datetime.now()
     current_time = current_time.strftime("%m%d-%H_%M_%S")
     with measure_time():
-        args = get_args()
+        args, args_general, args_pre, args_BO = get_args()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        args_BO.device = device
+        
         become_deterministic(args.seed)
         
         save_file_instance = save_logfile(args.save_name, args.model_dir, args)
@@ -296,7 +297,7 @@ if __name__ == '__main__':
 
         printc.blue( '\nsave_name:', args.save_name, '\n')
 
-        Main(args)
+        Main(args, args_general, args_pre, args_BO)
 
 
     printc.green('--------------- Training finished ---------------')
