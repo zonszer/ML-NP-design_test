@@ -224,30 +224,7 @@ class PCA_preprocessor:
         self.pre_fndict = fn_dict
         printc.blue('PCA dimensions:', X_pca.shape[1])
         return X_pca, y
-
-def my_train_test_split(X, y, split_ratio, random_state=None):
-    # check input data
-    if not isinstance(X, np.ndarray):
-        X = np.array(X)
-    if not isinstance(y, np.ndarray):
-        y = np.array(y)
-    if X.shape[0] != y.shape[0]:
-        raise ValueError("X and y must have the same number of samples")
-    # shuffle data
-    if random_state is not None:
-        np.random.seed(random_state)
-    idx = np.random.permutation(X.shape[0])
-    X = X[idx]
-    y = y[idx]
-    # calculate split index
-    split_idx = int(X.shape[0] * (1 - split_ratio))
-    # split data
-    X_train = X[:split_idx]
-    X_test = X[split_idx:]
-    y_train = y[:split_idx]
-    y_test = y[split_idx:]
-    return X_train, X_test, y_train, y_test
-    
+ 
 
 def Main(args, args_general, args_pre, args_BO):
     # 1. Import Data and Preprocessing 
@@ -265,8 +242,8 @@ def Main(args, args_general, args_pre, args_BO):
     kwargs_pre = vars(args_pre)
     preprocessor = PCA_preprocessor(**kwargs_pre)
 
-    if args.split_ratio != 0:       #TODO:not bug here
-        X_init, X_remain, y_init, y_remain = train_test_split(X_compo.copy(), y_pmax.copy(),      
+    if args.split_ratio != 0:       
+        X_init, X_remain, y_init, y_remain = train_test_split(X_compo, y_pmax,      
                                                               test_size=args.split_ratio)
     else:
         X_init, X_remain, y_init, y_remain = X_compo, None, y_pmax, None

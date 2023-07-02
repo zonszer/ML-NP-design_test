@@ -101,10 +101,10 @@ class MLModel:
 
     def optimize_qehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts, 
                                            q_num, bounds, raw_samples, ref_point_, 
-                                           all_descs, max_batch_size, 
+                                           all_descs, max_batch_size, iter_num, 
                                            validate=False, all_y=None):
         """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
-        with torch.no_grad():
+        with torch.no_grad():   #TODO: check if grad is removed 
             pred = model.posterior(normalize(train_X, bounds)).mean
         partitioning = FastNondominatedPartitioning(ref_point=ref_point_, Y=pred)
         acq_func = qExpectedHypervolumeImprovement(
@@ -120,7 +120,12 @@ class MLModel:
             max_batch_size=max_batch_size,
             unique=True,
         )
-        self.get_candidates_pred(model, candidates)
+        if iter_num == 1:
+            assert not hasattr(self, 'y_pred')
+            self.y_pred = self.get_candidates_pred(model, normalize(self.X_trainTrans, bounds))
+        else:
+            self.y_pred = np.concatenate([self.y_pred, self.get_candidates_pred(model, candidates.detach())], axis=0)
+
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         if validate and all_y is not None:
             new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
@@ -159,10 +164,12 @@ class MLModel:
         return X_new, y_new, random_elements_t
 
     def get_candidates_pred(self, model, candidates):
-        pred_mean = model.posterior(candidates).mean.detach().cpu().numpy()
-        pred_var = model.posterior(candidates).variance.detach().cpu().numpy()
-        pred_mean = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_mean, inverse_transform=True)
-        np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
+        with torch.no_grad():   #TODO: check if grad is removed 
+            pred_mean = model.posterior(candidates).mean.detach().cpu().numpy()
+            pred_var = model.posterior(candidates).variance.detach().cpu().numpy()
+            pred_mean = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_mean, inverse_transform=True)
+            # unnormalize(pred_mean, bounds=self.bounds)
+            np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
         return pred_mean
 
     def optimize_qnehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts, q_num, bounds, raw_samples, ref_point_, all_descs, max_batch_size, validate=False, all_y=None):
@@ -211,8 +218,8 @@ class MLModel:
             return self.PCA_preprocessor.pre_fndict['fn_input'](desc)
         elif isinstance(data, np.ndarray) and isinstance(all_y, np.ndarray) and validate:  #2:means data comes from remained data for validation
             desc = data
-            all_desc = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_input'](desc)).to(self.device)
-            all_y_ = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_for_y'](all_y)).to(self.device)
+            all_desc = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_input'](desc.copy())).to(self.device)    
+            all_y_ = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_for_y'](all_y.copy())).to(self.device)     #TODO: 神奇的bug here
             return all_desc, all_y_
         else:
             raise ValueError('Data type is not supported, or unknown data source')
@@ -229,29 +236,11 @@ class MLModel:
             model.load_state_dict(state_dict)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         return mll, model, train_x, train_obj, bounds_current
-    
-    # def output_exploreSeq(self, y_seq):
-    #     '''Output the explored sequence to a CSV file with different labels'''
-    #     iter_idx = 1
-    #     df = empty_df('index', 'iter')
-    #     for i, element in enumerate(y_seq):
-    #         if self.init_num <= i+1:
-    #             df.loc[i, 'iter'] = 0
-    #         else:
-    #             if (i+1 - self.init_num) % self.q_num != 0:
-    #                 df.loc[i, 'iter'] = iter_idx
-    #             else:
-    #                 df.loc[i, 'iter'] = iter_idx
-    #                 iter_idx += 1
-    #         index = np.argwhere(self.y_original_seq == element)
-    #         assert index is not None
-    #         df.loc[i, index'] = index
-    #     df.to_csv("explored_sequence_inMOBO_batches.csv", index=True, header=True)
 
     def output_exploreSeq(self, y_seq):
         '''Output the explored sequence to a CSV file with different labels to denote iters and corresponding column names'''
         iter_idx = 1
-        df = pd.DataFrame(columns=['original index in excel', 'y1', 'y2', 'iter'])
+        df = pd.DataFrame(columns=['original index in excel', 'y1', 'y2', 'y1_pred', 'y2_pred', 'iter'])
         for i, element in enumerate(y_seq):
             # Use np.all to compare entire rows
             index = np.where((self.y_original_seq == element).all(axis=1))
@@ -260,6 +249,8 @@ class MLModel:
             df.loc[i, 'original index in excel'] = int(index_val)  # Assuming index of a 2D array
             df.loc[i, 'y1'] = element[0]
             df.loc[i, 'y2'] = element[1]
+            df.loc[i, 'y1_pred'] = self.y_pred[i][0]
+            df.loc[i, 'y2_pred'] = self.y_pred[i][1]
 
             if i+1 <= self.init_num:
                 df.loc[i, 'iter'] = 0
@@ -269,7 +260,7 @@ class MLModel:
                 else:
                     df.loc[i, 'iter'] = iter_idx
                     iter_idx += 1
-        df.to_csv("explored_sequence_inMOBO_batches.csv", index=True, header=True)
+        df.to_csv("explored_sequence_inMOBO_batches2.csv", index=True, header=True)
         
     def MOBO_one_batch(self):
         hvs_qehvi_all = []
@@ -301,6 +292,7 @@ class MLModel:
                     q_num=self.q_num, bounds=bounds, raw_samples=self.mc_samples_num,
                     ref_point_=ref_point, all_descs=all_descs, max_batch_size=self.bs,
                     fn_dict=self.fn_dict,
+                    iter_num=__,
                 )
 
                 train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
@@ -360,7 +352,8 @@ class MLModel:
                     ref_point_=self.ref_point,
                     max_batch_size=self.bs,
                     all_descs=all_X, all_y=all_y,
-                    validate=True,
+                    validate=True, 
+                    iter_num=iteration,
                 )
                 self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
                 #==================random method:==================
@@ -425,7 +418,7 @@ class MLModel:
                 init_volume = self.compute_hv(hv, self.y_trainTrans)
                 hvs_qehvi.append(init_volume)
                 print("init Hypervolume is ", init_volume)
-                print("\n-----------------------------------start batches-----------------------------------\n")
+                printc.green("\n-----------------------------------start batches-----------------------------------\n")
 
                 for iteration in range(1, MAX_N_BATCH + 1):
                     t0 = time.monotonic()
@@ -444,6 +437,7 @@ class MLModel:
                         max_batch_size=self.bs,
                         all_descs=all_X, all_y=all_y,
                         validate=True,
+                        iter_num=iteration,
                     )
                     self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
                     #==================re-init models:==================
