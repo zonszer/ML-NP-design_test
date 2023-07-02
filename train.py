@@ -221,7 +221,7 @@ class MLModel:
         train_x, train_obj = self.generate_initial_data(X=train_x, y=train_obj) 
         bounds_current = self.generate_bounds(train_x, scale=(0, 1))
         train_x = normalize(train_x, bounds_current)
-        ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1], lengthscale_constraint=lengthscale).cuda()
+        ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1], lengthscale_constraint=lengthscale).to(sef.device)
         ker = ScaleKernel(ker)
         model = SingleTaskGP(train_x, train_obj, covar_module=ker, outcome_transform=Standardize(m=train_obj.shape[-1]))
         # model_parameters = model.state_dict()
@@ -292,7 +292,7 @@ class MLModel:
 
             for __ in range(1, 2):
                 fit_gpytorch_mll(mll_qehvi)
-                all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).cuda()
+                all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).to(self.device)
                 new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
 
                 new_x_qehvi, _ = self.optimize_qehvi_and_get_observation(
@@ -484,7 +484,7 @@ class MLModel:
 
             for __ in range(1, 2):
                 fit_gpytorch_mll(mll_ucb)
-                all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).cuda()
+                all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).to(self.device)
 
                 candidates, _ = optimize_acqf_discrete(
                     acq_function=ucb_qkg_acqf,
