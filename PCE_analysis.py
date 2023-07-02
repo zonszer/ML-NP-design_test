@@ -18,7 +18,7 @@ import csv
 # from ax.service.ax_client import AxClient
 # from ax.service.utils.instantiation import ObjectiveProperties
 
-
+from sklearn.model_selection import train_test_split
 from utils.parser_ import get_args
 from utils.utils_ import *
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis, plot_PCA_matminer_heatmap
@@ -105,6 +105,9 @@ def Add_extract_descriptors(df_pec, use_concentration):
         desc = df_pec_magpie.iloc[:, _:]
     return desc
 
+def select_train_elems():
+    return X_inp_list[0][elem1_indx_random], y_outp_list[0][elem1_indx_random] #只对num_elements==3的数据进行训练 #(并且只用其中随机抽取的20个元素)
+
 
 def filter_byMI(X, y, thr=0.0001):
     mi = mutual_info_regression(X, y)   #[616, 132] VS [616, 1]
@@ -119,83 +122,132 @@ def filter_byIdx(idx_union):
         return X[:, idx_union]
     return fn
 
-def MI_filtering_X(X, y):
-    idx_list_beforeMerge = []
-    for i in range(y.shape[1]):
-        idx = filter_byMI(X, y[:, i])
-        idx_list_beforeMerge.append(idx)
+class PCA_preprocessor:
+    def __init__(self, 
+                use_MI_filter,
+                use_y_norm,
+                is_MOBO,
+                use_Xnorm_afterPCA,
+                PCA_dim_select_method,
+                PCA_dim,
+                **kwargs):
+        
+        self.use_MI_filter = use_MI_filter
+        self.use_y_norm = use_y_norm
+        self.is_MOBO = is_MOBO
+        self.use_Xnorm_afterPCA = use_Xnorm_afterPCA
+        self.PCA_dim_select_method = PCA_dim_select_method
+        self.PCA_dim = PCA_dim
+        self.pre_fndict = None
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
-    idx_union = np.unique(np.concatenate(idx_list_beforeMerge))  # Find the union
-    X = X[:, idx_union]
-    printc.blue('X desc shape after MI filtering:', X.shape[1])
-    return X, filter_byIdx(idx_union), idx_union
+    def MI_filtering_X(self, X, y):
+        idx_list_beforeMerge = []
+        for i in range(y.shape[1]):
+            idx = filter_byMI(X, y[:, i])
+            idx_list_beforeMerge.append(idx)
+    
+        idx_union = np.unique(np.concatenate(idx_list_beforeMerge))  # Find the union
+        X = X[:, idx_union]
+        print('X desc shape after MI filtering:', X.shape[1])
+        return X, filter_byIdx(idx_union), idx_union
 
+    def norm_y(self, y, fn_dict):
+        for i in range(y.shape[1]):
+            std_scaler_y = StandardScaler()
+            y[:, i] = std_scaler_y.fit_transform(y[:, i].reshape(-1, 1))[:, -1]
+            # assert '''y1 is y['slope relative to Ru']'''
+            if i == 1 and self.is_MOBO:
+                y[:, i] = - y[:, i]
+            fn_dict['std_scaler_y'+str(i)] = std_scaler_y
 
-def norm_y(y, is_MOBO, fn_dict):
-    for i in range(y.shape[1]):
-        std_scaler_y = StandardScaler()
-        y[:, i] = std_scaler_y.fit_transform(y[:, i].reshape(-1, 1))[:, -1]
-        # assert '''y1 is y['slope relative to Ru']'''
-        if i == 1 and is_MOBO:
-            y[:, i] = - y[:, i]
-        fn_dict['std_scaler_y'+str(i)] = std_scaler_y
-    return y
+        def fn_for_y(y_current, inverse_transform=False):
+            assert y_current.shape[1] == y.shape[1]
+            for i in range(y_current.shape[1]):
+                if inverse_transform:
+                    y_current[:, i] = fn_dict['std_scaler_y'+str(i)].inverse_transform(y_current[:, i].reshape(-1, 1))[:, -1]
+                else:
+                    y_current[:, i] = fn_dict['std_scaler_y'+str(i)].transform(y_current[:, i].reshape(-1, 1))[:, -1]
+                if i == 1 and self.is_MOBO:
+                    y_current[:, i] = - y_current[:, i]
+            return y_current
 
-def norm_PCA_norm(X_compo, y_pmax, selected_method, n_dims, dataset_name,
-                  use_MI_filter, use_y_norm, is_MOBO, use_Xnorm_afterPCA, matminer_colnames):
-    fn_dict = {}
-    methods_tobe_combined = []
-    X = np.array(X_compo)
-    #X_log = np.log(X.astype('float'))
-    y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))
+        fn_dict['fn_for_y'] = fn_for_y
+        return y
 
-    # 1. MI filtering:
-    if use_MI_filter:
-        X, filter_method, idx_union = MI_filtering_X(X, y)
-        methods_tobe_combined.append(filter_method)
-    else:
-        pass
+    def PCA_dim_select(self):
+        if self.PCA_dim_select_method == 'auto':
+            assert type(self.PCA_dim) == float
+            selected_dim = self.PCA_dim
+        elif self.PCA_dim_select_method == 'assigned':
+            # assert type(PCA_dim) == int
+            selected_dim = int(self.PCA_dim)
+        return selected_dim
 
-    #2. X norm before PCA
-    std_scalerX = StandardScaler()            #用于进行col数据的归一化（norm1）到[0,1]之间，是按列进行norm（将数据的每一个属性值减去其最小值，然后除以其极差）
-    X_norm = std_scalerX.fit_transform(X)     #对X进行归一化 norm3
-    methods_tobe_combined.append(std_scalerX.transform)
+    def transform_fn_PCA(self, X_compo, y_pmax):
+        fn_dict = {}
+        methods_tobe_combined = []
+        X = np.array(X_compo)   #shape=(160, 132)
+        #X_log = np.log(X.astype('float'))
+        y = np.array(y_pmax.reshape(-1, y_pmax.shape[1]))    #shape=(160, 2)
+        
+        # 1. MI filtering:
+        if self.use_MI_filter:
+            X, filter_method, idx_union = self.MI_filtering_X(X, y)
+            methods_tobe_combined.append(filter_method)
 
-    #3. PCA
-    pca = PCA(n_components=PCA_dim_select(selected_method, n_dims))
-    X_pca = pca.fit_transform(X_norm)
-    methods_tobe_combined.append(pca.transform)
-    # plot_PCA_vis(X_pca, y)
-    # plot_PCA_matminer_heatmap(np.array(X_compo), X_pca, matminer_colnames)
-    # plot_PCA_matminer_heatmap(np.array(X_compo)[:, idx_union], X_pca, matminer_colnames[idx_union])
+        #2. X norm before PCA
+        std_scalerX = StandardScaler()            
+        X_norm = std_scalerX.fit_transform(X)     
+        methods_tobe_combined.append(std_scalerX.transform)
 
+        #3. PCA
+        pca = PCA(n_components=self.PCA_dim_select())
+        X_pca = pca.fit_transform(X_norm)
+        methods_tobe_combined.append(pca.transform)
+        # plot_PCA_vis(X_pca, y)
+        # plot_PCA_matminer_heatmap(np.array(X_compo), X_pca, matminer_colnames)
+        # plot_PCA_matminer_heatmap(np.array(X_compo)[:, idx_union], X_pca, matminer_colnames[idx_union])
 
-    #4. X norm after PCA
-    if use_Xnorm_afterPCA:
-        std_scalerX_afpca = StandardScaler()
-        X_pca = std_scalerX_afpca.fit_transform(X_pca)
-        methods_tobe_combined.append(std_scalerX_afpca.transform)
+        #4. X norm after PCA
+        if self.use_Xnorm_afterPCA:
+            std_scalerX_afpca = StandardScaler()
+            X_pca = std_scalerX_afpca.fit_transform(X_pca)
+            methods_tobe_combined.append(std_scalerX_afpca.transform)
 
-    #5. y norm
-    if use_y_norm:
-        y = norm_y(y, is_MOBO, fn_dict)
+        #5. y norm
+        if self.use_y_norm:
+            y = self.norm_y(y, fn_dict)
 
-    fn_dict['fn_input'] = fn_comb(kwargs=methods_tobe_combined)
+        fn_dict['fn_input'] = fn_comb(kwargs=methods_tobe_combined)
+        self.pre_fndict = fn_dict
+        printc.blue('PCA dimensions:', X_pca.shape[1])
+        return X_pca, y
 
-    return X_pca, y, fn_dict
-
-def PCA_dim_select(selected_method, n_dims):
-    if selected_method == 'auto':
-        assert type(n_dims) == float
-        selected_dim = n_dims
-    elif selected_method == 'assigned':
-        # assert type(n_dims) == int
-        selected_dim = int(n_dims)
-    return selected_dim
-
-def select_train_elems():
-    return X_inp_list[0][elem1_indx_random], y_outp_list[0][elem1_indx_random] #只对num_elements==3的数据进行训练 #(并且只用其中随机抽取的20个元素)
-                                                
+def my_train_test_split(X, y, split_ratio, random_state=None):
+    # check input data
+    if not isinstance(X, np.ndarray):
+        X = np.array(X)
+    if not isinstance(y, np.ndarray):
+        y = np.array(y)
+    if X.shape[0] != y.shape[0]:
+        raise ValueError("X and y must have the same number of samples")
+    # shuffle data
+    if random_state is not None:
+        np.random.seed(random_state)
+    idx = np.random.permutation(X.shape[0])
+    X = X[idx]
+    y = y[idx]
+    # calculate split index
+    split_idx = int(X.shape[0] * (1 - split_ratio))
+    # split data
+    X_train = X[:split_idx]
+    X_test = X[split_idx:]
+    y_train = y[:split_idx]
+    y_test = y[split_idx:]
+    return X_train, X_test, y_train, y_test
+    
 
 def Main(args, args_general, args_pre, args_BO):
     # 1. Import Data and Preprocessing 
@@ -209,19 +261,30 @@ def Main(args, args_general, args_pre, args_BO):
     # 3. Build regression model with composition descriptors 
     ## 3.1. norm and PCA input:
     # plot_Xy_relation(X_compo, y_pmax, descs.columns.values)
-    X, y, fn_dict = norm_PCA_norm(X_compo, y_pmax, args.PCA_dim_select_method, args.PCA_dim,
-                                  args.data_path, args.use_MI_filter, args.use_y_norm,
-                                  args.is_MOBO, args.use_Xnorm_afterPCA, descs.columns.values)
-    printc.blue('PCA dimensions:', X.shape[1])
+
+    kwargs_pre = vars(args_pre)
+    preprocessor = PCA_preprocessor(**kwargs_pre)
+
+    if args.split_ratio != 0:       #TODO:not bug here
+        X_init, X_remain, y_init, y_remain = train_test_split(X_compo.copy(), y_pmax.copy(),      
+                                                              test_size=args.split_ratio)
+    else:
+        X_init, X_remain, y_init, y_remain = X_compo, None, y_pmax, None
+
     # plot_desc_distribution(X, screen_dims=8)
     ## 3.2 split data into train and test, and train model
+    
+    kwargs_BO = vars(args_BO)
+    kwargs_BO.update({'PCA_preprocessor': preprocessor})
+    kwargs_BO.update({'y_original_seq': y_pmax})
+    if X_remain is not None and y_remain is not None:
+        kwargs_BO.update({'X_remain': X_remain})
+        kwargs_BO.update({'y_remain': y_remain})
 
-    kwargs = vars(args_BO)
-    Model = MLModel(X_train=X, y_train=y,
+    Model = MLModel(X_train=X_init, y_train=y_init,
                     save_file_instance=save_file_instance,
-                    fn_dict=fn_dict,
                     df_space_path=args.data_search_space,
-                    **kwargs)
+                    **kwargs_BO)
     if args.is_SOBO:
         assert 'PCE' in args.data_path
         # cross_train_validation(X, y, args.Kfold, args.num_restarts,
@@ -234,7 +297,7 @@ def Main(args, args_general, args_pre, args_BO):
     elif args.is_MOBO:
         assert 'OER' in args.data_path
         if args.only_use_elem2:
-            X, y = X[1:, :], y[1:, :]
+            X_init, y_init = X_init[1:, :], y_init[1:, :]
         # 1:
         # cross_train_validation(X, y, args.Kfold, args.num_restarts,
         #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
@@ -243,8 +306,8 @@ def Main(args, args_general, args_pre, args_BO):
         #                      args.ker_var_upper, save_file_instance,
         #                      args.split_ratio)
         # 3：
-        Model.MOBO_one_batch()
-        # Model.MOBO_batches()
+        # Model.MOBO_one_batch()
+        Model.MOBO_batches(mode="qEHVI")
         
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)

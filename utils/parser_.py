@@ -49,12 +49,12 @@ parser_BO.add_argument('--ker_lengthscale_upper', type=float, default=25, help='
 parser_BO.add_argument('--ker_var_upper', type=float, default=100, help='ker.variance upper limit')
 parser_BO.add_argument('--ucb_beta', type=float, default=0.1, help='ucb_beta')
 ## crossvalidation params:
-parser_BO.add_argument('--split_ratio', type=float, default=0, help='split_ratio=test_size/(test_size+train_size')
+parser_BO.add_argument('--split_ratio', type=float, default=0, help='split_ratio=test_size/(test_size+train_size or remain/(remain_size+init_size)')
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate')
 # parser.add_argument('--lr', type=float, default=0.05, help='learning rate')
 
 # bool
-parser.add_argument('--is_MOBO', default=False, action='store_true',
+parser_preprocessing.add_argument('--is_MOBO', default=False, action='store_true',
                     help='settings of MOBO')
 parser.add_argument('--is_SOBO', default=False, action='store_true',
                     help='settings of MOBO')
@@ -88,9 +88,9 @@ def get_args(ipynb=False):
         args, remaining = parser.parse_known_args()
         args_BO, remaining = parser_BO.parse_known_args(remaining)
         args_preprocessing = parser_preprocessing.parse_args(remaining)
-    printc.yellow('Parsed_general options:\n{}\n'.format(vars(args)))
-    printc.yellow('Parsed_preprocessing options:\n{}\n'.format(vars(args_preprocessing)))
-    printc.yellow('Parsed_BO options:\n{}\n'.format(vars(args_BO)))
+    printc.yellow('Parsed_general options:\n{}'.format(vars(args)))
+    printc.yellow('Parsed_preprocessing options:\n{}'.format(vars(args_preprocessing)))
+    printc.yellow('Parsed_BO options:\n{}'.format(vars(args_BO)))
 
     # show in txt file(data neme):
     txt = []

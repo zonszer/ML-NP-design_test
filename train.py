@@ -38,11 +38,11 @@ from botorch.utils.sampling import draw_sobol_samples
 class MLModel:
     def __init__(self, 
                 X_train, y_train, 
-                fn_dict,
                 ref_point, 
                 q_num, bs, 
                 mc_samples_num, 
                 ker_lengthscale_upper, 
+                PCA_preprocessor,
                 df_space_path=None,
                 **kwargs):
         
@@ -54,7 +54,7 @@ class MLModel:
         self.mc_samples_num = mc_samples_num
         self.ker_lengthscale_upper = ker_lengthscale_upper
         self.df_space_path = df_space_path
-        self.fn_dict = fn_dict
+        self.PCA_preprocessor = PCA_preprocessor
         if df_space_path is not None:
             self.df_space = pd.read_pickle(df_space_path)
             self.df_space.reset_index(drop=True, inplace=True)
@@ -64,35 +64,44 @@ class MLModel:
             # self.save_file_instance = kwargs['save_file_instance']
             # self.num_restarts = kwargs['num_restarts']
 
-    def generate_bounds(self, X, y, dim_X, num_objectives, scale=(0, 1)):
-        bounds = np.zeros((2, dim_X))
-        for i in range(dim_X):
+    def generate_bounds(self, X, scale=(0, 1)):
+        bounds = np.zeros((2, X.shape[1]))
+        for i in range(X.shape[1]):
             bounds[0][i] = X[:, i].min() * 1. # min of bound   #TODO: can not define the bound of the problem deterministically
             bounds[1][i] = X[:, i].max() * 1.  # max of bound
+        bounds = torch.DoubleTensor(bounds).to(self.device)
         return bounds
 
-    def generate_initial_data(self, X, y, ref_point):
+    def generate_initial_data(self, X, y):
         '''generate training data'''
-        train_x = torch.DoubleTensor(X).to(self.device)
-        train_obj = torch.DoubleTensor(y).to(self.device)
-        if ref_point is None:
+        X_trans, y_trans = self.PCA_preprocessor.transform_fn_PCA(X, y)
+        train_x = torch.DoubleTensor(X_trans).to(self.device)
+        train_obj = torch.DoubleTensor(y_trans).to(self.device)
+        return train_x, train_obj
+    
+    def generate_ref_point(self, y):
+        '''generate reference point from denoted str or data'''
+        if self.ref_point is None:
+            train_obj = torch.DoubleTensor(y).to(self.device)
             rp = torch.min(train_obj, axis=0)[0] - torch.abs(torch.min(train_obj, axis=0)[0]*0.1)
         else:
-            rp = torch.DoubleTensor(ref_point).to(self.device)
-        return train_x, train_obj, rp
+            rp = eval(self.ref_point) if isinstance(self.ref_point, type('')) else None
+            rp = torch.DoubleTensor(rp).to(self.device)
+        return rp
 
-    def init_experiment_input(self, X, y, ref_point):
-        X_dim = len(X[1])
-        num_objectives = len(y[1])
-        bounds = self.generate_bounds(X, y, X_dim, num_objectives, scale=(0, 1))
-        bounds = torch.FloatTensor(bounds).cuda()
-        ref_point = eval(ref_point) if isinstance(ref_point, type('')) else None
-        X, y, ref_point_ = self.generate_initial_data(X=X, y=y, ref_point=ref_point)
-        return X, y, bounds, ref_point_
+    def init_experiment(self, X, y, ref_point):
+        """Initialize experiment (adaptive generate ref_point and bounds of the problem)."""
+        X_trans, y_trans = self.PCA_preprocessor.transform_fn_PCA(X, y)
+        X_dim = len(X_trans[1])
+        num_objectives = len(y_trans[1])
+
+        bounds = self.generate_bounds(X_trans, scale=(0, 1))
+        ref_point_ = self.generate_ref_point(y_trans)
+        return bounds, ref_point_
 
     def optimize_qehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts, 
                                            q_num, bounds, raw_samples, ref_point_, 
-                                           all_descs, max_batch_size, fn_dict, 
+                                           all_descs, max_batch_size, 
                                            validate=False, all_y=None):
         """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
         with torch.no_grad():
@@ -104,45 +113,55 @@ class MLModel:
             partitioning=partitioning,
             sampler=sampler,
         )
-        candidates, _ = optimize_acqf_discrete(
+        candidates, acq_value = optimize_acqf_discrete( 
             acq_function=acq_func,
             q=q_num,
             choices=normalize(all_descs, bounds),
             max_batch_size=max_batch_size,
             unique=True,
         )
-        self.get_candidates_pred(model, candidates, fn_dict)
+        self.get_candidates_pred(model, candidates)
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         if validate and all_y is not None:
-            new_obj, new_obj_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
-            new_obj = new_obj['all_y']
-            print('idx are:', new_obj_idx)
+            new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
+            new_y = new_item_dict['all_y']
+            print('new item idxs are:', new_item_idx)
         else:
-            new_obj = None
-        return new_x, new_obj
-
-    def optimize_and_get_random_observation(self, X, y, X_now, n):
-        _, X_now_idx = self.get_idx_and_corObj(X_now, X)
-        mask = np.ones_like(X.cpu().numpy(), dtype=bool);
-        mask_y = np.ones_like(y.cpu().numpy(), dtype=bool)
-        mask[X_now_idx] = False;
-        mask_y[X_now_idx] = False
-        return self.generate_sobol_data(X[mask].reshape(-1, X.shape[1]), y[mask_y].reshape(-1, y.shape[1]), n=n)
-
-    def generate_sobol_data(self, X_r, y_r, n):
-        '''generate random data of new_x'''
+            new_y = None
+        return new_x, new_y, new_item_idx
+            
+    def update_Xy(self, new_item_idx):  #new_item_idx are relative idxs with the current X_remain
+        '''update X and y by removing new_item_idx in X_remain and add it to X_train'''
+        maskRow_X = np.ones(self.X_remain.shape[0], dtype=bool)
+        maskRow_X[new_item_idx] = False
+        # indices_X = np.nonzero(mask_X)  #get the index of non zero (True) elements of the mask
+        # indices_y = np.nonzero(mask_y)
+        new_X_train = np.concatenate((self.X_train, self.X_remain[new_item_idx]), axis=0)
+        new_y_train = np.concatenate((self.y_train, self.y_remain[new_item_idx]), axis=0)
+        # new_X_remain = np.ma.array(self.X_remain, mask=~mask_X).filled(fill_value=np.NaN) #still the original shape
+        # new_y_remain = np.ma.array(self.y_remain, mask=~mask_y).filled(fill_value=np.NaN)
+        return self.X_remain[maskRow_X], self.y_remain[maskRow_X], new_X_train, new_y_train
+    
+    def optimize_and_get_random_observation(self, X_r, y_r, n):
+        '''generate random data from X_r and y_r'''
+        # _, X_now_idx = self.get_idx_and_corObj(X_now, X)
+        # mask = np.ones_like(X.cpu().numpy(), dtype=bool);
+        # mask_y = np.ones_like(y.cpu().numpy(), dtype=bool)
+        # mask[X_now_idx] = False
+        # mask_y[X_now_idx] = False
         data_num = X_r.shape[0]
         random_elements = np.random.choice(range(data_num), n, replace=False)
-        return X_r[torch.tensor(random_elements).cuda(), :], y_r[torch.tensor(random_elements).cuda(), :]
+        mask = torch.ones(data_num, dtype=torch.bool)
+        random_elements_t = torch.tensor(random_elements).to(self.device)
+        mask[random_elements_t] = False
+        X_new = X_r[random_elements_t, :]   #shape=(125, 18)
+        y_new = y_r[random_elements_t, :]
+        return X_new, y_new, random_elements_t
 
-    def get_candidates_pred(self, model, candidates, fn_dict):
+    def get_candidates_pred(self, model, candidates):
         pred_mean = model.posterior(candidates).mean.detach().cpu().numpy()
         pred_var = model.posterior(candidates).variance.detach().cpu().numpy()
-        for i in range(pred_mean.shape[-1]):
-            if i == 1:
-                pred_mean[:, i] = -pred_mean[:, i]
-            if 'std_scaler_y'+str(i) in fn_dict:
-                pred_mean[:, i] = fn_dict['std_scaler_y'+str(i)].inverse_transform(pred_mean[:, i].reshape(-1, 1))[:, -1]
+        pred_mean = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_mean, inverse_transform=True)
         np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
         return pred_mean
 
@@ -164,15 +183,15 @@ class MLModel:
         )
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         if validate and all_y is not None:
-            new_obj, new_obj_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
-            new_obj = new_obj['all_y']
-            print('idx are:', new_obj_idx)
+            new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
+            new_y = new_item_dict['all_y']
+            print('idx are:', new_item_idx)
         else:
-            new_obj = None
-        return new_x, new_obj
+            new_y = None
+        return new_x, new_y
 
     def get_idx_and_corObj(self, new_x, all_descs, **kwargs):
-        '''generate new_obj from all_y and idx of new_x'''
+        '''generate idxs of new_x and can alos return the corresponding obj(if the obi is passed in kwargs)'''
         distmin_idx = self.compute_L2dist(new_x, all_descs)
         for key in kwargs.keys():
             kwargs[key] = kwargs[key][distmin_idx]
@@ -184,34 +203,77 @@ class MLModel:
         volume = hv.compute(pareto_y)
         return volume
 
-    def split_for_val(self, X, y, ini_size=0.2):
-        data_num = X.shape[0]
-        ini_num = int(data_num * ini_size)
-        random_elements = np.random.choice(range(data_num), ini_num, replace=False)
-        return X[torch.tensor(random_elements).cuda(), :], y[torch.tensor(random_elements).cuda(), :]
-
-    def transform_fn_PCA(self, df=None):
-        if df is None:
-            df = self.df_space
-        _ = df.shape[1] - 132  # changed param1
-        desc = df.iloc[:, _:].values
-        # X = np.array(desc)
-        return self.fn_dict['fn_input'](desc)
+    def transform_PCA_fn(self, data, all_y=None, validate=False):
+        """transform the descriptors of search space using the predefined PCA"""
+        if isinstance(data, pd.DataFrame):  #1:means data comes from search space
+            _ = data.shape[1] - 132  # changed param1
+            desc = data.iloc[:, _:].values
+            return self.PCA_preprocessor.pre_fndict['fn_input'](desc)
+        elif isinstance(data, np.ndarray) and isinstance(all_y, np.ndarray) and validate:  #2:means data comes from remained data for validation
+            desc = data
+            all_desc = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_input'](desc)).to(self.device)
+            all_y_ = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_for_y'](all_y)).to(self.device)
+            return all_desc, all_y_
+        else:
+            raise ValueError('Data type is not supported, or unknown data source')
 
     def initialize_model(self, train_x, train_obj, bounds, lengthscale, state_dict=None):
-        train_x = normalize(train_x, bounds)
+        train_x, train_obj = self.generate_initial_data(X=train_x, y=train_obj) 
+        bounds_current = self.generate_bounds(train_x, scale=(0, 1))
+        train_x = normalize(train_x, bounds_current)
         ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1], lengthscale_constraint=lengthscale).cuda()
         ker = ScaleKernel(ker)
         model = SingleTaskGP(train_x, train_obj, covar_module=ker, outcome_transform=Standardize(m=train_obj.shape[-1]))
-        model_parameters = model.state_dict()
+        # model_parameters = model.state_dict()
         if state_dict is not None:
             model.load_state_dict(state_dict)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        return mll, model
+        return mll, model, train_x, train_obj, bounds_current
+    
+    # def output_exploreSeq(self, y_seq):
+    #     '''Output the explored sequence to a CSV file with different labels'''
+    #     iter_idx = 1
+    #     df = empty_df('index', 'iter')
+    #     for i, element in enumerate(y_seq):
+    #         if self.init_num <= i+1:
+    #             df.loc[i, 'iter'] = 0
+    #         else:
+    #             if (i+1 - self.init_num) % self.q_num != 0:
+    #                 df.loc[i, 'iter'] = iter_idx
+    #             else:
+    #                 df.loc[i, 'iter'] = iter_idx
+    #                 iter_idx += 1
+    #         index = np.argwhere(self.y_original_seq == element)
+    #         assert index is not None
+    #         df.loc[i, index'] = index
+    #     df.to_csv("explored_sequence_inMOBO_batches.csv", index=True, header=True)
 
+    def output_exploreSeq(self, y_seq):
+        '''Output the explored sequence to a CSV file with different labels to denote iters and corresponding column names'''
+        iter_idx = 1
+        df = pd.DataFrame(columns=['original index in excel', 'y1', 'y2', 'iter'])
+        for i, element in enumerate(y_seq):
+            # Use np.all to compare entire rows
+            index = np.where((self.y_original_seq == element).all(axis=1))
+            assert index[0].size == 1, 'Element not found or repeated elements in self.y_original_seq'
+            index_val = index[0][0]  # taking the first occurrence of the element
+            df.loc[i, 'original index in excel'] = int(index_val)  # Assuming index of a 2D array
+            df.loc[i, 'y1'] = element[0]
+            df.loc[i, 'y2'] = element[1]
+
+            if i+1 <= self.init_num:
+                df.loc[i, 'iter'] = 0
+            else:
+                if (i+1 - self.init_num) % self.q_num != 0:
+                    df.loc[i, 'iter'] = iter_idx
+                else:
+                    df.loc[i, 'iter'] = iter_idx
+                    iter_idx += 1
+        df.to_csv("explored_sequence_inMOBO_batches.csv", index=True, header=True)
+        
     def MOBO_one_batch(self):
         hvs_qehvi_all = []
-        train_x_qehvi, train_obj_qehvi, bounds, ref_point = self.init_experiment_input(X=self.X_train, 
+        train_x_qehvi, train_obj_qehvi, bounds, ref_point = self.init_experiment(X=self.X_train, 
                                                                                        y=self.y_train, 
                                                                                        ref_point=self.ref_point)
         hv = Hypervolume(ref_point=ref_point)
@@ -230,7 +292,7 @@ class MLModel:
 
             for __ in range(1, 2):
                 fit_gpytorch_mll(mll_qehvi)
-                all_descs = torch.DoubleTensor(self.transform_fn_PCA(df=self.df_space)).cuda()
+                all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).cuda()
                 new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
 
                 new_x_qehvi, _ = self.optimize_qehvi_and_get_observation(
@@ -248,70 +310,83 @@ class MLModel:
                 distmin_idx = self.compute_L2dist(recommend_descs, all_descs)
                 self.save_recommend_comp(distmin_idx, self.df_space, recommend_descs, iter="1iters")
     
-    def MOBO_batches(self):
-        N_TRIALS = 1
+    def MOBO_batches_backup(self):
+        X_remain_random = self.X_remain
+        y_remain_random = self.y_remain
         N_BATCH = 100
         verbose = True
+        N_TRIALS = 1
 
         hvs_qehvi_all = []
-        X, y, bounds, ref_point = self.init_experiment_input(X=self.X_train, y=self.y_train, ref_point=self.ref_point)
-        hv = Hypervolume(ref_point=ref_point)
+        self.bounds, self.ref_point = self.init_experiment(X=np.concatenate((self.X_train, self.X_remain)), 
+                                                           y=np.concatenate((self.y_train, self.y_remain)),
+                                                           ref_point=self.ref_point)
+        # train_x_qehvi, train_obj_qehvi = self.generate_initial_data(X=self.X_train, y=self.y_train)
+        # train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
+        hv = Hypervolume(ref_point=self.ref_point)
 
         for trial in range(1, N_TRIALS + 1):
             print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
             hvs_qehvi, hvs_random = [], []
+            # if self.split_ratio != 0:
+            #     train_x_qehvi, train_obj_qehvi = self.split_for_val(X, y, ini_size=self.split_ratio)
+            # else:
+            #     train_x_qehvi, train_obj_qehvi = X, y
+            # train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
+            mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans = self.initialize_model(train_x=self.X_train, 
+                                                                                                train_obj=self.y_train, bounds=self.bounds,
+                                                                                                lengthscale=Interval(0.01, self.ker_lengthscale_upper))
+            train_x_random, train_obj_random = self.X_trainTrans, self.y_trainTrans
 
-            if self.split_ratio != 0:
-                train_x_qehvi, train_obj_qehvi = self.split_for_val(X, y, ini_size=self.split_ratio)
-            else:
-                train_x_qehvi, train_obj_qehvi = X, y
-            train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
-
-            mll_qehvi, model_qehvi = self.initialize_model(train_x_qehvi, 
-                                                           train_obj_qehvi, 
-                                                           bounds, 
-                                                           lengthscale=Interval(0.01, self.ker_lengthscale_upper))
-
-            init_volume = self.compute_hv(hv, train_obj_qehvi)
+            init_volume = self.compute_hv(hv, self.y_trainTrans)
             hvs_qehvi.append(init_volume)
             hvs_random.append(init_volume)
             print("init Hypervolume is ", init_volume)
 
             for iteration in range(1, N_BATCH + 1):
                 t0 = time.monotonic()
-
+                #==================qevi method:==================
                 fit_gpytorch_mll(mll_qehvi)
 
+                all_X, all_y = self.transform_PCA_fn(self.X_remain, all_y=self.y_remain, validate=True)
                 new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
-
-                new_x, new_obj = self.optimize_qehvi_and_get_observation(
-                    model=model_qehvi, train_X=train_x_qehvi, 
-                    train_obj=train_obj_qehvi, sampler=new_sampler, 
+                new_x, new_obj, new_item_idx = self.optimize_qehvi_and_get_observation(
+                    model=model_qehvi,
+                    train_X=self.X_trainTrans, train_obj=self.y_trainTrans,
+                    sampler=new_sampler,
                     num_restarts=self.num_restarts,
-                    q_num=self.q_num, bounds=bounds, 
+                    q_num=self.q_num, bounds=self.bounds,
                     raw_samples=self.mc_samples_num,
-                    ref_point_=ref_point, all_descs=X, max_batch_size=self.bs,
-                    all_y=y, validate=True,
-                    fn_dict=self.fn_dict,
+                    ref_point_=self.ref_point,
+                    max_batch_size=self.bs,
+                    all_descs=all_X, all_y=all_y,
+                    validate=True,
                 )
+                self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
+                #==================random method:==================
+                all_X, all_y = self.transform_PCA_fn(X_remain_random, all_y=y_remain_random, validate=True)
+                new_x_random, new_obj_random, new_item_idx = self.optimize_and_get_random_observation(all_X,
+                                                                                        all_y,
+                                                                                        n=self.q_num)
+                X_r[mask, :], y_r[mask, :] = self.update_Xy(new_item_idx)
 
-                new_x_random, new_obj_random = self.optimize_and_get_random_observation(X, y, X_now=train_x_random, n=self.q_num)
-
-                train_x_qehvi = torch.cat([train_x_qehvi, new_x])
-                train_obj_qehvi = torch.cat([train_obj_qehvi, new_obj])
+                #==================summary:==================
+                self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
+                self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
                 train_x_random = torch.cat([train_x_random, new_x_random])
                 train_obj_random = torch.cat([train_obj_random, new_obj_random])
 
                 print("--------------------------------------------")
-                recommend_descs = train_x_qehvi[-self.q_num:]
-                hvs_qehvi.append(self.compute_hv(hv, train_obj_qehvi))
+                recommend_descs = self.X_trainTrans[-self.q_num:]
+                hvs_qehvi.append(self.compute_hv(hv, self.y_trainTrans))
                 hvs_random.append(self.compute_hv(hv, train_obj_random))
 
-                mll_qehvi, model_qehvi = self.initialize_model(train_x_qehvi, train_obj_qehvi, bounds, 
-                                                               lengthscale=Interval(0.01, self.ker_lengthscale_upper))
+                #==================re-init models:==================
+                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans = self.initialize_model(train_x=self.X_train, 
+                                                                                                    train_obj=self.y_train, bounds=self.bounds,
+                                                                                                    lengthscale=Interval(0.01, self.ker_lengthscale_upper))
 
                 t1 = time.monotonic()
-
                 if verbose:
                     print(
                         f"\nBatch {iteration:>2}: Hypervolume (random, qEHVI) = "
@@ -322,19 +397,94 @@ class MLModel:
                 else:
                     print(".", end="")
 
+    def MOBO_batches(self, mode="qEHVI"):
+            MAX_N_BATCH = 100
+            verbose = True
+            N_TRIALS = 1
+            self.init_num = self.X_train.shape[0]
+
+            hvs_qehvi_all = []
+            self.bounds, self.ref_point = self.init_experiment(X=np.concatenate((self.X_train, self.X_remain)),
+                                                               y=np.concatenate((self.y_train, self.y_remain)),
+                                                               ref_point=self.ref_point)
+            # train_x_qehvi, train_obj_qehvi = self.generate_initial_data(X=self.X_train, y=self.y_train)
+            # train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
+            hv = Hypervolume(ref_point=self.ref_point)
+
+            for trial in range(1, N_TRIALS + 1):
+                print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
+                hvs_qehvi = []
+                # if self.split_ratio != 0:
+                #     train_x_qehvi, train_obj_qehvi = self.split_for_val(X, y, ini_size=self.split_ratio)
+                # else:
+                #     train_x_qehvi, train_obj_qehvi = X, y
+                # train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
+                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(train_x=self.X_train,
+                                                                                                train_obj=self.y_train, bounds=self.bounds,
+                                                                                                lengthscale=Interval(0.01, self.ker_lengthscale_upper))
+                init_volume = self.compute_hv(hv, self.y_trainTrans)
+                hvs_qehvi.append(init_volume)
+                print("init Hypervolume is ", init_volume)
+                print("\n-----------------------------------start batches-----------------------------------\n")
+
+                for iteration in range(1, MAX_N_BATCH + 1):
+                    t0 = time.monotonic()
+                    #==================qevi method:==================
+                    fit_gpytorch_mll(mll_qehvi)
+                    all_X, all_y = self.transform_PCA_fn(self.X_remain, all_y=self.y_remain, validate=True)
+                    new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
+                    new_x, new_obj, new_item_idx = self.optimize_qehvi_and_get_observation(
+                        model=model_qehvi,
+                        train_X=self.X_trainTrans, train_obj=self.y_trainTrans,
+                        sampler=new_sampler,
+                        num_restarts=self.num_restarts,
+                        q_num=self.q_num, bounds=self.bounds,
+                        raw_samples=self.mc_samples_num,
+                        ref_point_=self.ref_point,
+                        max_batch_size=self.bs,
+                        all_descs=all_X, all_y=all_y,
+                        validate=True,
+                    )
+                    self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
+                    #==================re-init models:==================
+                    mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(train_x=self.X_train,
+                                                                                                    train_obj=self.y_train, bounds=self.bounds,
+                                                                                                    lengthscale=Interval(0.01, self.ker_lengthscale_upper))
+                    #==================summary:==================
+                    # self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
+                    # self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
+                    recommend_descs_NewTrans = self.X_trainTrans[-self.q_num:]
+                    hvs_qehvi.append(self.compute_hv(hv, self.y_trainTrans))
+                    t1 = time.monotonic()
+                    if self.X_remain.shape[0] == 0:
+                        self.output_exploreSeq(self.y_train) 
+                        break
+
+                    if verbose:
+                        print(
+                            f"\nsummary: Batch {iteration:>2}: Hypervolume of {mode} after added new items = "
+                            f"{hvs_qehvi[-1]:>4.2f} "
+                            f"\ntime = {t1-t0:>4.2f}.",
+                            end="",
+                        )
+                        print("\n--------------------------------------------")
+                    else:
+                        print(".", end="")
+
+
     def SOBO_one_batch(self):
-        train_x_ucb, train_obj_ucb, bounds, _ = self.init_experiment_input(X=self.X_train, y=self.y_train, 
+        train_x_ucb, train_obj_ucb, bounds, _ = self.init_experiment(X=self.X_train, y=self.y_train,
                                                                            ref_point=self.ref_point)
 
         for trial in range(1, 2):
             print(f"\nTrial {trial:>2}", end="\n")
-            mll_ucb, model_ucb = self.initialize_model(train_x_ucb, train_obj_ucb, bounds, 
+            mll_ucb, model_ucb = self.initialize_model(train_x_ucb, train_obj_ucb, bounds,
                                                        lengthscale=Interval(0.01, self.ker_lengthscale_upper))
             ucb_qkg_acqf = qUpperConfidenceBound(model_ucb, beta=self.beta)
 
             for __ in range(1, 2):
                 fit_gpytorch_mll(mll_ucb)
-                all_descs = torch.DoubleTensor(self.transform_fn_PCA(df=self.df_space)).cuda()
+                all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).cuda()
 
                 candidates, _ = optimize_acqf_discrete(
                     acq_function=ucb_qkg_acqf,
@@ -351,7 +501,7 @@ class MLModel:
                 recommend_descs = train_x_ucb[-self.q_num:]
                 torch.cuda.empty_cache()
                 distmin_idx = self.compute_L2dist(recommend_descs, all_descs)
-                self.save_recommend_comp(distmin_idx, self.df_space, recommend_descs, 
+                self.save_recommend_comp(distmin_idx, self.df_space, recommend_descs,
                                          df_space_path=self.df_space_path)
 
     def save_recommend_comp(self, idx, df_space, recommend_descs, all_descs=None, iter=None):
