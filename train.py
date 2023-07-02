@@ -221,7 +221,7 @@ class MLModel:
         train_x, train_obj = self.generate_initial_data(X=train_x, y=train_obj) 
         bounds_current = self.generate_bounds(train_x, scale=(0, 1))
         train_x = normalize(train_x, bounds_current)
-        ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1], lengthscale_constraint=lengthscale).to(sef.device)
+        ker = MaternKernel(nu=2.5, ard_num_dims=train_x.shape[-1], lengthscale_constraint=lengthscale).to(self.device)
         ker = ScaleKernel(ker)
         model = SingleTaskGP(train_x, train_obj, covar_module=ker, outcome_transform=Standardize(m=train_obj.shape[-1]))
         # model_parameters = model.state_dict()
