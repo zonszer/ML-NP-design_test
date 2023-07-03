@@ -286,8 +286,9 @@ def Main(args, args_general, args_pre, args_BO):
         #                      args.split_ratio)
         # 3：
         # Model.MOBO_one_batch()
-        Model.MOBO_batches(mode="qEHVI")
-        
+        # Model.MOBO_batches(mode="qEHVI")
+        Model.MOBO_batches(mode="random")
+
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)
     else:

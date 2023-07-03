@@ -121,12 +121,7 @@ class MLModel:
             max_batch_size=max_batch_size,
             unique=True,
         )
-        if iter_num == 1:
-            assert not hasattr(self, 'y_pred')
-            self.y_pred = self.get_candidates_pred(model, normalize(self.X_trainTrans, bounds))
-            self.y_pred = np.concatenate([self.y_pred, self.get_candidates_pred(model, candidates.detach())], axis=0)
-        else:
-            self.y_pred = np.concatenate([self.y_pred, self.get_candidates_pred(model, candidates.detach())], axis=0)
+        self.y_pred, self.y_predVar = self.get_y_pred(model, candidates.detach(), iter_num)
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         if validate and all_y is not None:
@@ -149,7 +144,7 @@ class MLModel:
         # new_y_remain = np.ma.array(self.y_remain, mask=~mask_y).filled(fill_value=np.NaN)
         return self.X_remain[maskRow_X], self.y_remain[maskRow_X], new_X_train, new_y_train
 
-    def optimize_and_get_random_observation(self, X_r, y_r, n):
+    def optimize_and_get_random_observation(self, X_r, y_r, q_num, model, iter_num):
         '''generate random data from X_r and y_r'''
         # _, X_now_idx = self.get_idx_and_corObj(X_now, X)
         # mask = np.ones_like(X.cpu().numpy(), dtype=bool);
@@ -157,21 +152,37 @@ class MLModel:
         # mask[X_now_idx] = False
         # mask_y[X_now_idx] = False
         data_num = X_r.shape[0]
-        random_elements = np.random.choice(range(data_num), n, replace=False)
+        random_elements = np.random.choice(range(data_num), q_num, replace=False)
         mask = torch.ones(data_num, dtype=torch.bool)
         random_elements_t = torch.tensor(random_elements).to(self.device)
         mask[random_elements_t] = False
         X_new = X_r[random_elements_t, :]  # shape=(125, 18)
         y_new = y_r[random_elements_t, :]
+        candidates = normalize(X_new, self.bounds)
+        self.y_pred, self.y_predVar = self.get_y_pred(model, candidates, iter_num)
         return X_new, y_new, random_elements_t
+
+    def get_y_pred(self, model, candidates, iter_num):
+        if iter_num == 1:
+            assert not hasattr(self, 'y_pred')
+            self.y_pred, self.y_predVar = self.get_candidates_pred(model, normalize(self.X_trainTrans, self.bounds))
+            new_y_pred, new_y_predVar = self.get_candidates_pred(model, candidates)
+            self.y_pred = np.concatenate([self.y_pred, new_y_pred], axis=0)
+            self.y_predVar = np.concatenate([self.y_predVar, new_y_predVar], axis=0)
+        else:
+            new_y_pred, new_y_predVar = self.get_candidates_pred(model, candidates)
+            self.y_pred = np.concatenate([self.y_pred, new_y_pred], axis=0)
+            self.y_predVar = np.concatenate([self.y_predVar, new_y_predVar], axis=0)
+        return self.y_pred, self.y_predVar
 
     def get_candidates_pred(self, model, candidates):
         with torch.no_grad():  # TODO: check if grad is removed
             pred_mean = model.posterior(candidates).mean.detach().cpu().numpy()
             pred_var = model.posterior(candidates).variance.detach().cpu().numpy()
-            pred_mean = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_mean, inverse_transform=True)
+            pred_mean_ = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_mean, inverse_transform=True)
+            pred_var_ = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_var, inverse_transform=True)
             np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
-        return pred_mean
+        return pred_mean_, pred_var_
 
     def optimize_qnehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts, q_num, bounds,
                                             raw_samples, ref_point_, all_descs, max_batch_size, validate=False,
@@ -244,7 +255,7 @@ class MLModel:
     def output_exploreSeq(self, y_seq):
         '''Output the explored sequence to a CSV file with different labels to denote iters and corresponding column names'''
         iter_idx = 1
-        df = pd.DataFrame(columns=['original index in excel', 'y1', 'y2', 'y1_pred', 'y2_pred', 'iter'])
+        df = pd.DataFrame(columns=['original index in excel', 'y1', 'y2', 'y1_pred', 'y2_pred', 'y1_predVar', 'y2_predVar', 'iter'])
         for i, element in enumerate(y_seq):
             # Use np.all to compare entire rows
             index = np.where((self.y_original_seq == element).all(axis=1))
@@ -255,6 +266,8 @@ class MLModel:
             df.loc[i, 'y2'] = element[1]
             df.loc[i, 'y1_pred'] = self.y_pred[i][0]
             df.loc[i, 'y2_pred'] = self.y_pred[i][1]
+            df.loc[i, 'y1_predVar'] = self.y_predVar[i][0]
+            df.loc[i, 'y2_predVar'] = self.y_predVar[i][1]
 
             if i + 1 <= self.init_num:
                 df.loc[i, 'iter'] = 0
@@ -306,95 +319,89 @@ class MLModel:
                 distmin_idx = self.compute_L2dist(recommend_descs, all_descs)
                 self.save_recommend_comp(distmin_idx, self.df_space, recommend_descs, iter="1iters")
 
-    def MOBO_batches_backup(self):
-        X_remain_random = self.X_remain
-        y_remain_random = self.y_remain
-        N_BATCH = 100
+
+    def MOBO_batches(self, mode="qEHVI"):
+        MAX_N_BATCH = 100
         verbose = True
         N_TRIALS = 1
+        self.init_num = self.X_train.shape[0]
 
         hvs_qehvi_all = []
         self.bounds, self.ref_point = self.init_experiment(X=np.concatenate((self.X_train, self.X_remain)),
                                                            y=np.concatenate((self.y_train, self.y_remain)),
                                                            ref_point=self.ref_point)
-        # train_x_qehvi, train_obj_qehvi = self.generate_initial_data(X=self.X_train, y=self.y_train)
-        # train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
         hv = Hypervolume(ref_point=self.ref_point)
 
         for trial in range(1, N_TRIALS + 1):
             print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
-            hvs_qehvi, hvs_random = [], []
-            # if self.split_ratio != 0:
-            #     train_x_qehvi, train_obj_qehvi = self.split_for_val(X, y, ini_size=self.split_ratio)
-            # else:
-            #     train_x_qehvi, train_obj_qehvi = X, y
-            # train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
-            mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans = self.initialize_model(train_x=self.X_train, 
-                                                                                                train_obj=self.y_train, bounds=self.bounds,
-                                                                                                lengthscale=Interval(0.01, self.ker_lengthscale_upper))
-            train_x_random, train_obj_random = self.X_trainTrans, self.y_trainTrans
-
+            hvs_qehvi = []
+            mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(
+                train_x=self.X_train,
+                train_obj=self.y_train, bounds=self.bounds,
+                lengthscale=Interval(0.01, self.ker_lengthscale_upper)
+            )
             init_volume = self.compute_hv(hv, self.y_trainTrans)
             hvs_qehvi.append(init_volume)
-            hvs_random.append(init_volume)
             print("init Hypervolume is ", init_volume)
+            printc.green("\n-----------------------------------start batches-----------------------------------\n")
 
-            for iteration in range(1, N_BATCH + 1):
+            for iteration in range(1, MAX_N_BATCH + 1):
                 t0 = time.monotonic()
-                # ==================qevi method:==================
-                fit_gpytorch_mll(mll_qehvi)
-
+                # ================== apply method and update trainXy: =================
                 all_X, all_y = self.transform_PCA_fn(self.X_remain, all_y=self.y_remain, validate=True)
-                new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
-                new_x, new_obj, new_item_idx = self.optimize_qehvi_and_get_observation(
-                    model=model_qehvi,
-                    train_X=self.X_trainTrans, train_obj=self.y_trainTrans,
-                    sampler=new_sampler,
-                    num_restarts=self.num_restarts,
-                    q_num=self.q_num, bounds=self.bounds,
-                    raw_samples=self.mc_samples_num,
-                    ref_point_=self.ref_point,
-                    max_batch_size=self.bs,
-                    all_descs=all_X, all_y=all_y,
-                    validate=True,
-                    iter_num=iteration,
-                )
+                fit_gpytorch_mll(mll_qehvi)
+                if mode == "random":
+                    new_x_random, new_obj_random, new_item_idx = self.optimize_and_get_random_observation(all_X,
+                                                                                            all_y, 
+                                                                                            q_num=self.q_num,
+                                                                                            model=model_qehvi,
+                                                                                            iter_num=iteration)
+                else:
+                    # model_qehvi.covar_module.base_kernel.lengthscale
+                    new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
+                    new_x, new_obj, new_item_idx = self.optimize_qehvi_and_get_observation(
+                        model=model_qehvi,
+                        train_X=self.X_trainTrans, train_obj=self.y_trainTrans,
+                        sampler=new_sampler,
+                        num_restarts=self.num_restarts,
+                        q_num=self.q_num, bounds=self.bounds,
+                        raw_samples=self.mc_samples_num,
+                        ref_point_=self.ref_point,
+                        max_batch_size=self.bs,
+                        all_descs=all_X, all_y=all_y,
+                        validate=True,
+                        iter_num=iteration,
+                    )
                 self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
-                # ==================random method:==================
-                all_X, all_y = self.transform_PCA_fn(X_remain_random, all_y=y_remain_random, validate=True)
-                new_x_random, new_obj_random, new_item_idx = self.optimize_and_get_random_observation(all_X,
-                                                                                                      all_y,
-                                                                                                      n=self.q_num)
-                X_r[mask, :], y_r[mask, :] = self.update_Xy(new_item_idx)
-
-                # ==================summary:==================
-                self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
-                self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
-                train_x_random = torch.cat([train_x_random, new_x_random])
-                train_obj_random = torch.cat([train_obj_random, new_obj_random])
-
-                print("--------------------------------------------")
-                recommend_descs = self.X_trainTrans[-self.q_num:]
-                hvs_qehvi.append(self.compute_hv(hv, self.y_trainTrans))
-                hvs_random.append(self.compute_hv(hv, train_obj_random))
-
-                # ==================re-init models:==================
-                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans = self.initialize_model(
+                # ================== re-init models: ==================
+                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(
                     train_x=self.X_train,
                     train_obj=self.y_train, bounds=self.bounds,
-                    lengthscale=Interval(0.01, self.ker_lengthscale_upper))
-
+                    lengthscale=Interval(0.01, self.ker_lengthscale_upper)
+                )
+                # ====================== summary: ======================
+                # self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
+                # self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
+                recommend_descs_NewTrans = self.X_trainTrans[-self.q_num:]
+                hvs_qehvi.append(self.compute_hv(hv, self.y_trainTrans))
                 t1 = time.monotonic()
                 if verbose:
                     print(
-                        f"\nBatch {iteration:>2}: Hypervolume (random, qEHVI) = "
-                        f"({hvs_random[-1]:>4.2f}, {hvs_qehvi[-1]:>4.2f}) "
-                        f" time = {t1 - t0:>4.2f}.",
+                        f"\nsummary: Batch {iteration:>2}: Hypervolume of {mode} after added new items = "
+                        f"{hvs_qehvi[-1]:>4.2f} "
+                        f"\ntime = {t1 - t0:>4.2f}.",
                         end="",
                     )
+                    print("\n--------------------------------------------")
                 else:
                     print(".", end="")
-
+                # ==================if break loop:==================
+                if self.y_train.shape[0] == self.y_original_seq.shape[0]:
+                    assert self.y_pred.shape[0] == self.y_train.shape[0]
+                    "y_pred does not have the enough num!"
+                    self.output_exploreSeq(self.y_train)
+                    break
+                
     def MOBO_batches(self, mode="qEHVI"):
         MAX_N_BATCH = 100
         verbose = True
