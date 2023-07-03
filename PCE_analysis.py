@@ -166,11 +166,13 @@ class PCA_preprocessor:
             assert y_current.shape[1] == y.shape[1]
             for i in range(y_current.shape[1]):
                 if inverse_transform:
+                    if i == 1 and self.is_MOBO:
+                        y_current[:, i] = - y_current[:, i]
                     y_current[:, i] = fn_dict['std_scaler_y'+str(i)].inverse_transform(y_current[:, i].reshape(-1, 1))[:, -1]
                 else:
                     y_current[:, i] = fn_dict['std_scaler_y'+str(i)].transform(y_current[:, i].reshape(-1, 1))[:, -1]
-                if i == 1 and self.is_MOBO:
-                    y_current[:, i] = - y_current[:, i]
+                    if i == 1 and self.is_MOBO:
+                        y_current[:, i] = - y_current[:, i]
             return y_current
 
         fn_dict['fn_for_y'] = fn_for_y
