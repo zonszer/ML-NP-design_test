@@ -124,6 +124,7 @@ class MLModel:
         if iter_num == 1:
             assert not hasattr(self, 'y_pred')
             self.y_pred = self.get_candidates_pred(model, normalize(self.X_trainTrans, bounds))
+            self.y_pred = np.concatenate([self.y_pred, self.get_candidates_pred(model, candidates.detach())], axis=0)
         else:
             self.y_pred = np.concatenate([self.y_pred, self.get_candidates_pred(model, candidates.detach())], axis=0)
 
@@ -263,7 +264,7 @@ class MLModel:
                 else:
                     df.loc[i, 'iter'] = iter_idx
                     iter_idx += 1
-        df.to_csv("explored_sequence_inMOBO_batches2.csv", index=True, header=True)
+        df.to_csv("explored_sequence_inMOBO_batches0.csv", index=True, header=True)
 
     def MOBO_one_batch(self):
         hvs_qehvi_all = []
@@ -423,7 +424,7 @@ class MLModel:
 
             for iteration in range(1, MAX_N_BATCH + 1):
                 t0 = time.monotonic()
-                # ==================qevi method:==================
+                # ==================qevi method and update trainXy:=================
                 fit_gpytorch_mll(mll_qehvi)
                 # model_qehvi.covar_module.base_kernel.lengthscale
                 all_X, all_y = self.transform_PCA_fn(self.X_remain, all_y=self.y_remain, validate=True)
@@ -441,14 +442,7 @@ class MLModel:
                     validate=True,
                     iter_num=iteration,
                 )
-                # ==================update loop or break loop:==================
-                if self.y_train.shape[0] == self.y_original_seq.shape[0]:
-                    assert self.y_pred.shape[0] == self.y_train.shape[0]
-                    "y_pred does not have the enough num!"
-                    self.output_exploreSeq(self.y_train)
-                    break
-                else:
-                    self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
+                self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
                 # ==================re-init models:==================
                 mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(
                     train_x=self.X_train,
@@ -470,6 +464,12 @@ class MLModel:
                     print("\n--------------------------------------------")
                 else:
                     print(".", end="")
+                # ==================update loop or break loop:==================
+                if self.y_train.shape[0] == self.y_original_seq.shape[0]:
+                    assert self.y_pred.shape[0] == self.y_train.shape[0]
+                    "y_pred does not have the enough num!"
+                    self.output_exploreSeq(self.y_train)
+                    break
 
     def SOBO_one_batch(self):
         train_x_ucb, train_obj_ucb, bounds, _ = self.init_experiment(X=self.X_train, y=self.y_train,
