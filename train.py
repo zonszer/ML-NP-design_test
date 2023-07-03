@@ -160,7 +160,7 @@ class MLModel:
         y_new = y_r[random_elements_t, :]
         candidates = normalize(X_new, self.bounds)
         self.y_pred, self.y_predVar = self.get_y_pred(model, candidates, iter_num)
-        return X_new, y_new, random_elements_t
+        return X_new, y_new, random_elements_t.cpu().numpy()
 
     def get_y_pred(self, model, candidates, iter_num):
         if iter_num == 1:
@@ -319,7 +319,6 @@ class MLModel:
                 distmin_idx = self.compute_L2dist(recommend_descs, all_descs)
                 self.save_recommend_comp(distmin_idx, self.df_space, recommend_descs, iter="1iters")
 
-
     def MOBO_batches(self, mode="qEHVI"):
         MAX_N_BATCH = 100
         verbose = True
@@ -380,82 +379,6 @@ class MLModel:
                     lengthscale=Interval(0.01, self.ker_lengthscale_upper)
                 )
                 # ====================== summary: ======================
-                # self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
-                # self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
-                recommend_descs_NewTrans = self.X_trainTrans[-self.q_num:]
-                hvs_qehvi.append(self.compute_hv(hv, self.y_trainTrans))
-                t1 = time.monotonic()
-                if verbose:
-                    print(
-                        f"\nsummary: Batch {iteration:>2}: Hypervolume of {mode} after added new items = "
-                        f"{hvs_qehvi[-1]:>4.2f} "
-                        f"\ntime = {t1 - t0:>4.2f}.",
-                        end="",
-                    )
-                    print("\n--------------------------------------------")
-                else:
-                    print(".", end="")
-                # ==================if break loop:==================
-                if self.y_train.shape[0] == self.y_original_seq.shape[0]:
-                    assert self.y_pred.shape[0] == self.y_train.shape[0]
-                    "y_pred does not have the enough num!"
-                    self.output_exploreSeq(self.y_train)
-                    break
-                
-    def MOBO_batches(self, mode="qEHVI"):
-        MAX_N_BATCH = 100
-        verbose = True
-        N_TRIALS = 1
-        self.init_num = self.X_train.shape[0]
-
-        hvs_qehvi_all = []
-        self.bounds, self.ref_point = self.init_experiment(X=np.concatenate((self.X_train, self.X_remain)),
-                                                           y=np.concatenate((self.y_train, self.y_remain)),
-                                                           ref_point=self.ref_point)
-        # train_x_qehvi, train_obj_qehvi = self.generate_initial_data(X=self.X_train, y=self.y_train)
-        # train_x_random, train_obj_random = train_x_qehvi, train_obj_qehvi
-        hv = Hypervolume(ref_point=self.ref_point)
-
-        for trial in range(1, N_TRIALS + 1):
-            print(f"\nTrial {trial:>2} of {N_TRIALS} ", end="\n")
-            hvs_qehvi = []
-            mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(
-                train_x=self.X_train,
-                train_obj=self.y_train, bounds=self.bounds,
-                lengthscale=Interval(0.01, self.ker_lengthscale_upper)
-            )
-            init_volume = self.compute_hv(hv, self.y_trainTrans)
-            hvs_qehvi.append(init_volume)
-            print("init Hypervolume is ", init_volume)
-            printc.green("\n-----------------------------------start batches-----------------------------------\n")
-
-            for iteration in range(1, MAX_N_BATCH + 1):
-                t0 = time.monotonic()
-                # ==================qevi method and update trainXy:=================
-                fit_gpytorch_mll(mll_qehvi)
-                # model_qehvi.covar_module.base_kernel.lengthscale
-                all_X, all_y = self.transform_PCA_fn(self.X_remain, all_y=self.y_remain, validate=True)
-                new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
-                new_x, new_obj, new_item_idx = self.optimize_qehvi_and_get_observation(
-                    model=model_qehvi,
-                    train_X=self.X_trainTrans, train_obj=self.y_trainTrans,
-                    sampler=new_sampler,
-                    num_restarts=self.num_restarts,
-                    q_num=self.q_num, bounds=self.bounds,
-                    raw_samples=self.mc_samples_num,
-                    ref_point_=self.ref_point,
-                    max_batch_size=self.bs,
-                    all_descs=all_X, all_y=all_y,
-                    validate=True,
-                    iter_num=iteration,
-                )
-                self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
-                # ==================re-init models:==================
-                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(
-                    train_x=self.X_train,
-                    train_obj=self.y_train, bounds=self.bounds,
-                    lengthscale=Interval(0.01, self.ker_lengthscale_upper))
-                # ==================summary:==================
                 # self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
                 # self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
                 recommend_descs_NewTrans = self.X_trainTrans[-self.q_num:]
