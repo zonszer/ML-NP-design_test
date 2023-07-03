@@ -464,7 +464,7 @@ class MLModel:
                     print("\n--------------------------------------------")
                 else:
                     print(".", end="")
-                # ==================update loop or break loop:==================
+                # ==================if break loop:==================
                 if self.y_train.shape[0] == self.y_original_seq.shape[0]:
                     assert self.y_pred.shape[0] == self.y_train.shape[0]
                     "y_pred does not have the enough num!"
