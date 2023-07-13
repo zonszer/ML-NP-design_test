@@ -270,8 +270,8 @@ def Main(args, args_general, args_pre, args_BO):
         #                        args.ker_lengthscale_upper, args.ker_var_upper, save_file_instance)
         # elem1_train_and_plot(X, y, args.num_restarts, args.ker_lengthscale_upper,
         #                      args.ker_var_upper, save_file_instance,
-        #                      args.split_ratio)
-        Model.SOBO_one_batch()
+        #                      args.split_ratio) 
+        Model.SOBO_one_batch() 
 
     elif args.is_MOBO:
         assert 'OER' in args.data_path

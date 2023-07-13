@@ -244,7 +244,7 @@ class MLModel:
         ker = MaternKernel(nu=2.5, ard_num_dims=normalize(train_x, bounds_current).shape[-1],
                            lengthscale_constraint=lengthscale).to(self.device)
         ker = ScaleKernel(ker)
-        model = SingleTaskGP(normalize(train_x, bounds_current), train_obj, covar_module=ker,
+        model = SingleTaskGP(normalize(train_x, bounds_current), train_obj, #covar_module=ker,
                              outcome_transform=Standardize(m=train_obj.shape[-1]))
         # model_parameters = model.state_dict()
         if state_dict is not None:
