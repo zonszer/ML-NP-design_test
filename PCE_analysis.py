@@ -21,6 +21,7 @@ import csv
 from sklearn.model_selection import train_test_split
 from utils.parser_ import get_args
 from utils.utils_ import *
+from utils import logger
 from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis, plot_PCA_matminer_heatmap
 # from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from train import *
@@ -113,7 +114,7 @@ def filter_byMI(X, y, thr=0.0001):
     mi = mutual_info_regression(X, y)   #[616, 132] VS [616, 1]
     mi /= np.max(mi)                    #还是norm3
     idx = np.nonzero(mi>thr)
-    # printc.BLUE(idx)        #32
+    # logger.log(logging.INFO, idx, color='BLUE'.upper())        #32
     return idx[0]
 
 def filter_byIdx(idx_union):
@@ -150,7 +151,7 @@ class PCA_preprocessor:
     
         idx_union = np.unique(np.concatenate(idx_list_beforeMerge))  # Find the union
         X = X[:, idx_union]
-        print('X desc shape after MI filtering:', X.shape[1])
+        logger.log(logging.INFO, f'X desc shape after MI filtering:{X.shape[1]}')
         return X, filter_byIdx(idx_union), idx_union
 
     def norm_y(self, y, fn_dict):
@@ -224,7 +225,7 @@ class PCA_preprocessor:
 
         fn_dict['fn_input'] = fn_comb(kwargs=methods_tobe_combined)
         self.pre_fndict = fn_dict
-        printc.blue('PCA dimensions:', X_pca.shape[1])
+        logger.log(logging.INFO, f'PCA dimensions: {X_pca.shape[1]}', color='blue'.upper())
         return X_pca, y
  
 
@@ -286,8 +287,8 @@ def Main(args, args_general, args_pre, args_BO):
         #                      args.split_ratio)
         # 3：
         # Model.MOBO_one_batch()
-        # Model.MOBO_batches(mode="qEHVI")
-        Model.MOBO_batches(mode="random")
+        Model.MOBO_batches(mode="qEHVI")
+        # Model.MOBO_batches(mode="random")
 
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)
@@ -295,50 +296,69 @@ def Main(args, args_general, args_pre, args_BO):
         raise ValueError('Unknow dataset')
 
 
-def save_logfile(save_name, model_dir, args):       #TODO: rewrite it to a class
-    '''send me 'saveType, savename, value' and a value, and I will save it to a file '''
-    os.makedirs(pjoin(model_dir, save_name), exist_ok=True)
-    while True:
-        saveType, savename, value = yield
-        if saveType == 'setup':
-            with open(pjoin(model_dir, save_name, 'setup.txt'), 'a') as f:
-                print('{}:\n{}\n'.format(savename, str(value)), file=f)
-                f.write('\n\n')
-        elif saveType == 'result':
-            if savename == '': savename = args.id
-            with open(pjoin(model_dir, save_name, 'result.txt'), 'a') as f:
-                print('{}:\n{}\n'.format(savename, str(value)), file=f)
-                f.write('\n\n')
-            write_dict_to_csv(value, pjoin(model_dir, save_name, savename+'.csv'))
-            write_dict_to_csv(value, pjoin('tempdata', savename+'.csv'))
-        elif saveType == 'model':
-            if savename == '': savename = args.id
-            paths = pjoin(model_dir, save_name, savename)    #
-            value.save_model(paths)
+class FileSaver:
+    def __init__(self, save_name, model_dir, args):
+        self.save_name = save_name
+        self.model_dir = model_dir
+        self.args = args
+        os.makedirs(pjoin(model_dir, save_name), exist_ok=True)
+
+    def save(self, save_type, save_name, value):
+        """
+        Save the given value based on the save_type and save_name.
+
+        :param save_type: Type of the save operation ('setup', 'result', 'model')
+        :param save_name: Name of the file to save
+        :param value: Value to be saved
+        """
+        if save_type == 'setup':
+            self._save_setup(save_name, value)
+        elif save_type == 'result':
+            self._save_result(save_name, value)
+        elif save_type == 'model':
+            self._save_model(save_name, value)
         else:
             print('saveType must be args, result, or model')
+
+    def _save_setup(self, save_name, value):
+        with open(pjoin(self.model_dir, self.save_name, 'setup.txt'), 'a') as f:
+            print('{}:\n{}\n'.format(save_name, str(value)), file=f)
+            f.write('\n\n')
+
+    def _save_result(self, save_name, value):
+        if save_name == '': save_name = self.args.id
+        with open(pjoin(self.model_dir, self.save_name, 'result.txt'), 'a') as f:
+            print('{}:\n{}\n'.format(save_name, str(value)), file=f)
+            f.write('\n\n')
+        write_dict_to_csv(value, pjoin(self.model_dir, self.save_name, save_name+'.csv'))
+        write_dict_to_csv(value, pjoin('tempdata', save_name+'.csv'))
+
+    def _save_model(self, save_name, value):
+        if save_name == '': save_name = self.args.id
+        paths = pjoin(self.model_dir, self.save_name, save_name)
+        value.save_model(paths)
+
 
 if __name__ == '__main__':
     current_time = datetime.datetime.now()
     current_time = current_time.strftime("%m%d-%H_%M_%S")
     with measure_time():
         args, args_general, args_pre, args_BO = get_args()
+        logger._init(pjoin(args.model_dir, args.save_name, f'train-{current_time}.log'))
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         args_BO.device = device
         
         become_deterministic(args.seed)
         
-        save_file_instance = save_logfile(args.save_name, args.model_dir, args)
-        next(save_file_instance)
-        save_file_instance.send(('setup', 'args:', args))
+        save_file_instance = FileSaver(args.save_name, args.model_dir, args)
+        # FileSaver.save('setup', 'args:', args)
 
-        printc.blue( '\nsave_name:', args.save_name, '\n')
+        logger.log(logging.INFO,  f'\nsave_name: {args.save_name} \n', color='blue'.upper())
 
         Main(args, args_general, args_pre, args_BO)
 
 
-    printc.green('--------------- Training finished ---------------')
-    print('model_name:', args.save_name)
-    # writer.close()
+    logger.log(logging.INFO, '--------------- Training finished ---------------', color='green'.upper())
+    logger.log(logging.INFO, f'model_name:{args.save_name}')
 
 

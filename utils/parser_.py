@@ -118,6 +118,8 @@ def get_args(ipynb=False):
 
     if model_name in [getbase(c) for c in glob(pjoin(args.model_dir, '*'))]:
         printc.red('WARNING: MODEL', model_name, '\nALREADY EXISTS')
+    else:
+        os.makedirs(pjoin(args.model_dir, model_name))
     args = clean_args(args)
     args_all = combine_args(args, args_preprocessing, args_BO)
 

@@ -10,6 +10,8 @@ from glob import glob
 import csv
 import torch
 from typing import List
+import logging
+import os
 
 def write_dict_to_csv(data: dict, file_path):
     with open(file_path, 'a', newline='') as csvfile:
@@ -61,6 +63,7 @@ class measure_time():
 
 
 class printc:
+    """colorful print, but now I want colorul logging to show the message"""
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
     OKGREEN = "\033[92m"
@@ -94,3 +97,28 @@ class printc:
     @staticmethod
     def uni(color, text:tuple):
         print(color + ' '.join([str(x) for x in text]) + printc.END)
+
+class RunningAverage():
+    """A simple class that maintains the running average of a quantity
+
+    Example:
+    ```
+    loss_avg = RunningAverage()
+    loss_avg.update(2)
+    loss_avg.update(4)
+    loss_avg() = 3
+    ```
+    """
+
+    def __init__(self):
+        self.steps = 0
+        self.total = 0
+
+    def update(self, val):
+        self.total += val
+        self.steps += 1
+
+    def __call__(self):
+        return self.total / float(self.steps)
+
+
