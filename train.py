@@ -8,11 +8,10 @@ from botorch import fit_gpytorch_mll
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement, qUpperConfidenceBound
 # from botorch.acquisition import qExpectedImprovement, qNoisyExpectedImprovement
 from botorch.sampling import SobolQMCNormalSampler
-from botorch.utils.multi_objective.pareto import is_non_dominated
 from botorch.utils.multi_objective.hypervolume import Hypervolume
+from botorch.utils.multi_objective.box_decompositions.dominated import DominatedPartitioning
 
 from botorch.optim.optimize import optimize_acqf, optimize_acqf_list
-from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
 from botorch.acquisition.multi_objective.monte_carlo import qExpectedHypervolumeImprovement, \
     qNoisyExpectedHypervolumeImprovement
 from botorch.acquisition import UpperConfidenceBound
@@ -83,22 +82,23 @@ class MLModel:
 
     def generate_ref_point(self, y):
         '''generate reference point from denoted str or data'''
-        if self.ref_point is None:
-            train_obj = torch.DoubleTensor(y).to(self.device)
-            rp = torch.min(train_obj, axis=0)[0]
-        else:
+        if isinstance(self.ref_point, type('')):
             rp = eval(self.ref_point) if isinstance(self.ref_point, type('')) else None
             rp = torch.DoubleTensor(rp).to(self.device)
+        else:
+            if not isinstance(y, type(torch.Tensor(0))):
+                y = torch.DoubleTensor(y).to(self.device)
+            rp = torch.min(y, axis=0)[0]
         return rp
 
     def init_experiment(self, X, y, ref_point):
         """Initialize experiment (adaptive generate ref_point and bounds of the problem)."""
         X_trans, y_trans = self.PCA_preprocessor.transform_fn_PCA(X, y)
-        X_dim = len(X_trans[1])
-        num_objectives = len(y_trans[1])
-
         bounds = self.generate_bounds(X_trans, scale=(0, 1))
         ref_point_ = self.generate_ref_point(y_trans)
+        bd = DominatedPartitioning(ref_point=ref_point_, Y=torch.DoubleTensor(y_trans).to(self.device))
+        volume = bd.compute_hypervolume().item()
+        logger.log(logging.INFO, f"Dataset Hypervolume is {volume}", color='GREEN')
         return bounds, ref_point_
 
     def optimize_qehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts,
@@ -113,6 +113,36 @@ class MLModel:
             model=model,
             ref_point=ref_point_.tolist(),
             partitioning=partitioning,
+            sampler=sampler,
+        )
+        candidates, acq_value = optimize_acqf_discrete(
+            acq_function=acq_func,
+            q=q_num,
+            choices=normalize(all_descs, bounds),
+            max_batch_size=max_batch_size,
+            unique=True,
+        )
+        self.y_pred, self.y_predVar = self.get_y_pred(model, candidates.detach(), iter_num)
+
+        new_x = unnormalize(candidates.detach(), bounds=bounds)
+        if validate and all_y is not None:
+            new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
+            new_y = new_item_dict['all_y']
+            logger.log(logging.INFO, f'new item idxs are: {new_item_idx}')
+        else:
+            new_y = None
+        return new_x, new_y, new_item_idx
+
+    def optimize_qnehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts,
+                                           q_num, bounds, raw_samples, ref_point_,
+                                           all_descs, max_batch_size, iter_num,
+                                           validate=False, all_y=None):
+        """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
+        acq_func = qNoisyExpectedHypervolumeImprovement(
+            model=model,
+            ref_point=ref_point_.tolist(),
+            X_baseline=normalize(train_X, bounds),
+            prune_baseline=True,
             sampler=sampler,
         )
         candidates, acq_value = optimize_acqf_discrete(
@@ -185,33 +215,6 @@ class MLModel:
             np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
         return pred_mean_, pred_var_
 
-    def optimize_qnehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts, q_num, bounds,
-                                            raw_samples, ref_point_, all_descs, max_batch_size, validate=False,
-                                            all_y=None):
-        """Optimizes the qEHVI acquisition function, and returns a new candidate and observation."""
-        acq_func = qNoisyExpectedHypervolumeImprovement(
-            model=model,
-            ref_point=ref_point_.tolist(),
-            X_baseline=normalize(train_X, bounds),
-            prune_baseline=True,
-            sampler=sampler,
-        )
-        candidates, _ = optimize_acqf_discrete(
-            acq_function=acq_func,
-            q=q_num,
-            choices=normalize(all_descs, bounds),
-            max_batch_size=max_batch_size,
-            unique=False,
-        )
-        new_x = unnormalize(candidates.detach(), bounds=bounds)
-        if validate and all_y is not None:
-            new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
-            new_y = new_item_dict['all_y']
-            logger.log(logging.INFO, f'idx are: {new_item_idx}')
-        else:
-            new_y = None
-        return new_x, new_y
-
     def get_idx_and_corObj(self, new_x, all_descs, **kwargs):
         '''generate idxs of new_x and can alos return the corresponding obj(if the obi is passed in kwargs)'''
         distmin_idx = self.compute_L2dist(new_x, all_descs)
@@ -219,11 +222,11 @@ class MLModel:
             kwargs[key] = kwargs[key][distmin_idx]
         return kwargs, distmin_idx
 
-    def compute_hv(self, hv, train_obj_qehvi):
-        pareto_mask = is_non_dominated(train_obj_qehvi)
-        pareto_y = train_obj_qehvi[pareto_mask]
-        volume = hv.compute(pareto_y)
-        return volume
+    # def compute_hv(self, hv, train_obj_qehvi):
+    #     pareto_mask = is_non_dominated(train_obj_qehvi)
+    #     pareto_y = train_obj_qehvi[pareto_mask]
+    #     volume = hv.compute(pareto_y)
+    #     return volume
 
     def transform_PCA_fn(self, data, all_y=None, validate=False):
         """transform the descriptors of search space using the predefined PCA"""
@@ -242,6 +245,7 @@ class MLModel:
     def initialize_model(self, train_x, train_obj, bounds, lengthscale, state_dict=None):
         train_x, train_obj = self.generate_initial_data(X=train_x, y=train_obj)
         bounds_current = self.generate_bounds(train_x, scale=(0, 1))
+        ref_point_current = self.generate_ref_point(train_obj)
         ker = MaternKernel(nu=2.5, ard_num_dims=normalize(train_x, bounds_current).shape[-1],
                            lengthscale_constraint=lengthscale).to(self.device)
         ker = ScaleKernel(ker)
@@ -251,7 +255,7 @@ class MLModel:
         if state_dict is not None:
             model.load_state_dict(state_dict)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        return mll, model, train_x, train_obj, bounds_current
+        return mll, model, train_x, train_obj, bounds_current, ref_point_current
 
     def output_exploreSeq(self, y_seq):
         '''Output the explored sequence to a CSV file with different labels to denote iters and corresponding column names'''
@@ -287,7 +291,7 @@ class MLModel:
         for i in range(new_x.shape[1]):
             if not torch.all(new_x[:, i] >= self.bounds[0][i]) or not torch.all(new_x[:, i] <= self.bounds[1][i]):
                 logger.log(logging.WARNING, 
-                           f'Some of the generated samples are outside the bounds for dimension {i}', color='YELLOW')
+                           f'Warning: Some of the generated samples are outside the bounds for dimension {i}', color='YELLOW')
 
     def MOBO_one_batch(self):
         hvs_qehvi_all = []
@@ -339,19 +343,20 @@ class MLModel:
         self.bounds, self.ref_point = self.init_experiment(X=np.concatenate((self.X_train, self.X_remain)),
                                                            y=np.concatenate((self.y_train, self.y_remain)),
                                                            ref_point=self.ref_point)
-        hv = Hypervolume(ref_point=self.ref_point)
 
         for trial in range(1, N_TRIALS + 1):
             logger.log(logging.INFO, f"\nTrial {trial:>2} of {N_TRIALS} \n")
             hvs_qehvi = []
-            mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(
+            mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, \
+            self.bounds, self.ref_point = self.initialize_model(
                 train_x=self.X_train,
                 train_obj=self.y_train, bounds=self.bounds,
                 lengthscale=Interval(0.01, self.ker_lengthscale_upper)
             )
-            init_volume = self.compute_hv(hv, self.y_trainTrans)
-            hvs_qehvi.append(init_volume)
-            logger.log(logging.INFO, f"init Hypervolume is {init_volume}")
+            bd = DominatedPartitioning(ref_point=self.ref_point, Y=self.y_trainTrans)
+            volume = bd.compute_hypervolume().item()
+            hvs_qehvi.append(volume)
+            logger.log(logging.INFO, f"Init Hypervolume is {volume}", color='GREEN')
             logger.log(logging.INFO, "\n--------------start batches--------------\n", color='green'.upper())
 
             for iteration in range(1, MAX_N_BATCH + 1):
@@ -360,7 +365,7 @@ class MLModel:
                 all_X, all_y = self.transform_PCA_fn(self.X_remain, all_y=self.y_remain, validate=True)
                 fit_gpytorch_mll(mll_qehvi)
                 if mode == "random":
-                    new_x_random, new_obj_random, new_item_idx = self.optimize_and_get_random_observation(all_X,
+                    new_x, new_obj, new_item_idx = self.optimize_and_get_random_observation(all_X,
                                                                                             all_y, 
                                                                                             q_num=self.q_num,
                                                                                             model=model_qehvi,
@@ -368,7 +373,7 @@ class MLModel:
                 else:
                     # model_qehvi.covar_module.base_kernel.lengthscale
                     new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
-                    new_x, new_obj, new_item_idx = self.optimize_qehvi_and_get_observation(
+                    new_x, new_obj, new_item_idx = self.optimize_qnehvi_and_get_observation(
                         model=model_qehvi,
                         train_X=self.X_trainTrans, train_obj=self.y_trainTrans,
                         sampler=new_sampler,
@@ -384,7 +389,8 @@ class MLModel:
                 self._validate_samples(new_x)
                 self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
                 # ================== re-init models: ==================
-                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, self.bounds = self.initialize_model(
+                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, \
+                self.bounds, self.ref_point = self.initialize_model(
                     train_x=self.X_train,
                     train_obj=self.y_train, bounds=self.bounds,
                     lengthscale=Interval(0.01, self.ker_lengthscale_upper)
@@ -393,7 +399,9 @@ class MLModel:
                 # self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
                 # self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
                 recommend_descs_NewTrans = self.X_trainTrans[-self.q_num:]
-                hvs_qehvi.append(self.compute_hv(hv, self.y_trainTrans))
+                bd = DominatedPartitioning(ref_point=self.ref_point, Y=self.y_trainTrans)
+                volume = bd.compute_hypervolume().item()
+                hvs_qehvi.append(volume)
                 t1 = time.monotonic()
                 if verbose:
                     print(
@@ -458,5 +466,5 @@ class MLModel:
         dm = torch.cdist(target_obj, space)
         dist_min, distmin_idx = dm.min(dim=1)
         if dist_min.min() > 1e-4:
-            logger.log(logging.INFO, "Warning: the distance between the recommended and the actual is too large, please check it!", color='red'.upper())
+            logger.log(logging.WARNING, "Warning: the distance between the recommended and the actual is too large, please check it!", color='red'.upper())
         return distmin_idx.cpu().numpy()

@@ -318,17 +318,21 @@ class FileSaver:
         elif save_type == 'model':
             self._save_model(save_name, value)
         else:
-            print('saveType must be args, result, or model')
+            logger.log(logging.INFO, 'saveType must be args, result, or model')
 
     def _save_setup(self, save_name, value):
         with open(pjoin(self.model_dir, self.save_name, 'setup.txt'), 'a') as f:
-            print('{}:\n{}\n'.format(save_name, str(value)), file=f)
+            message = '{}:\n{}\n'.format(save_name, str(value))
+            logger.log(logging.INFO, message)
+            f.write(message)
             f.write('\n\n')
 
     def _save_result(self, save_name, value):
         if save_name == '': save_name = self.args.id
         with open(pjoin(self.model_dir, self.save_name, 'result.txt'), 'a') as f:
-            print('{}:\n{}\n'.format(save_name, str(value)), file=f)
+            message = '{}:\n{}\n'.format(save_name, str(value))
+            logger.log(logging.INFO, message)
+            f.write(message)
             f.write('\n\n')
         write_dict_to_csv(value, pjoin(self.model_dir, self.save_name, save_name+'.csv'))
         write_dict_to_csv(value, pjoin('tempdata', save_name+'.csv'))
@@ -351,7 +355,7 @@ if __name__ == '__main__':
         become_deterministic(args.seed)
         
         save_file_instance = FileSaver(args.save_name, args.model_dir, args)
-        # FileSaver.save('setup', 'args:', args)
+        save_file_instance.save(save_type='setup', save_name='args:', value=args)
 
         logger.log(logging.INFO,  f'\nsave_name: {args.save_name} \n', color='blue'.upper())
 
