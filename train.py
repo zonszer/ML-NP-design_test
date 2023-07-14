@@ -1,7 +1,9 @@
 from utils.utils_ import *
 import pandas as pd
 import time
+import glob
 from PCE_analysis import logger
+from preprocessing import Preprocessing, Add_extract_descriptors
 
 import torch
 from botorch import fit_gpytorch_mll
@@ -91,6 +93,12 @@ class MLModel:
             rp = torch.min(y, axis=0)[0]
         return rp
 
+    def generate_search_space(self, data):
+        assert isinstance(data, pd.DataFrame)   
+        idx = data.shape[1] - 132  # changed param1
+        desc = data.iloc[:, idx:].values
+        return desc, None
+
     def init_experiment(self, X, y, ref_point):
         """Initialize experiment (adaptive generate ref_point and bounds of the problem)."""
         X_trans, y_trans = self.PCA_preprocessor.transform_fn_PCA(X, y)
@@ -125,12 +133,15 @@ class MLModel:
         self.y_pred, self.y_predVar = self.get_y_pred(model, candidates.detach(), iter_num)
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
-        if validate and all_y is not None:
+        if validate:
+            assert all_y is not None
             new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
             new_y = new_item_dict['all_y']
-            logger.log(logging.INFO, f'new item idxs are: {new_item_idx}')
         else:
+            assert all_y is None
+            new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs)
             new_y = None
+        logger.log(logging.INFO, f'new item idxs are: {new_item_idx}')
         return new_x, new_y, new_item_idx
 
     def optimize_qnehvi_and_get_observation(self, model, train_X, train_obj, sampler, num_restarts,
@@ -155,25 +166,48 @@ class MLModel:
         self.y_pred, self.y_predVar = self.get_y_pred(model, candidates.detach(), iter_num)
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
-        if validate and all_y is not None:
+        if validate:
+            assert all_y is not None
             new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs, all_y=all_y)
             new_y = new_item_dict['all_y']
-            logger.log(logging.INFO, f'new item idxs are: {new_item_idx}')
         else:
+            assert all_y is None
+            new_item_dict, new_item_idx = self.get_idx_and_corObj(new_x, all_descs)
             new_y = None
+        logger.log(logging.INFO, f'new item idxs are: {new_item_idx}')
         return new_x, new_y, new_item_idx
 
-    def update_Xy(self, new_item_idx):  # new_item_idx are relative idxs with the current X_remain
+    def generate_y_fromFile(self, desc_ofNewX, iter):
+        if self.iter_files != []:
+            file_path = self.iter_files[iter]
+            df = Preprocessing(file_path)
+            descs = Add_extract_descriptors(df)
+            file_descs = descs.values              
+            new_y_train = df[self.y_col_names].values  
+            new_item_dict, new_item_idx = self.get_idx_and_corObj(desc_ofNewX, file_descs, new_y_train=new_y_train)   #  TODO: check
+            new_y_train_ = new_item_dict['new_y_train']
+            logger.log(logging.INFO, f'new item idxs in iter_data files are: {new_item_idx}')
+        else:
+            new_y_train_ = np.full((self.q_num, len(self.y_col_names)), np.nan, dtype=np.float64)
+        return new_y_train_
+
+    def update_Xy(self, new_item_idx, is_validate, iteration):  # new_item_idx are relative idxs with the current X_remain
         '''update X and y by removing new_item_idx in X_remain and add it to X_train'''
         maskRow_X = np.ones(self.X_remain.shape[0], dtype=bool)
         maskRow_X[new_item_idx] = False
         # indices_X = np.nonzero(mask_X)  #get the index of non zero (True) elements of the mask
         # indices_y = np.nonzero(mask_y)
         new_X_train = np.concatenate((self.X_train, self.X_remain[new_item_idx]), axis=0)
-        new_y_train = np.concatenate((self.y_train, self.y_remain[new_item_idx]), axis=0)
+        if is_validate:
+            new_y_train = np.concatenate((self.y_train, self.y_remain[new_item_idx]), axis=0)
+            new_X_remain, new_y_remain = self.X_remain[maskRow_X], self.y_remain[maskRow_X]
+        else:
+            new_y = self.generate_y_fromFile(desc_ofNewX=self.X_remain[new_item_idx], iter=iteration)
+            new_y_train = np.concatenate((self.y_train, new_y), axis=0)
+            new_X_remain, new_y_remain = self.X_remain[maskRow_X], None
         # new_X_remain = np.ma.array(self.X_remain, mask=~mask_X).filled(fill_value=np.NaN) #still the original shape
         # new_y_remain = np.ma.array(self.y_remain, mask=~mask_y).filled(fill_value=np.NaN)
-        return self.X_remain[maskRow_X], self.y_remain[maskRow_X], new_X_train, new_y_train
+        return new_X_remain, new_y_remain, new_X_train, new_y_train
 
     def optimize_and_get_random_observation(self, X_r, y_r, q_num, model, iter_num):
         '''generate random data from X_r and y_r'''
@@ -194,7 +228,7 @@ class MLModel:
         return X_new, y_new, random_elements_t.cpu().numpy()
 
     def get_y_pred(self, model, candidates, iter_num):
-        if iter_num == 1:
+        if iter_num == 0:
             assert not hasattr(self, 'y_pred')
             self.y_pred, self.y_predVar = self.get_candidates_pred(model, normalize(self.X_trainTrans, self.bounds))
             new_y_pred, new_y_predVar = self.get_candidates_pred(model, candidates)
@@ -212,7 +246,7 @@ class MLModel:
             pred_var = model.posterior(candidates).variance.detach().cpu().numpy()
             pred_mean_ = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_mean, inverse_transform=True)
             pred_var_ = self.PCA_preprocessor.pre_fndict["fn_for_y"](pred_var, inverse_transform=True)
-            np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
+            # np.savetxt("pred_meanORE.csv", pred_mean, delimiter=",")
         return pred_mean_, pred_var_
 
     def get_idx_and_corObj(self, new_x, all_descs, **kwargs):
@@ -228,21 +262,20 @@ class MLModel:
     #     volume = hv.compute(pareto_y)
     #     return volume
 
-    def transform_PCA_fn(self, data, all_y=None, validate=False):
+    def transform_PCA_fn(self, data, all_y, validate):
         """transform the descriptors of search space using the predefined PCA"""
-        if isinstance(data, pd.DataFrame):  # 1:means data comes from search space
-            _ = data.shape[1] - 132  # changed param1
-            desc = data.iloc[:, _:].values
-            return self.PCA_preprocessor.pre_fndict['fn_input'](desc)
-        elif isinstance(data, np.ndarray) and isinstance(all_y, np.ndarray) and validate:  #2:means data comes from remained data for validation
-            desc = data
-            all_desc = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_input'](desc.copy())).to(self.device)    
+        assert isinstance(data, np.ndarray)
+        all_desc = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_input'](data.copy())).to(self.device)    
+        if validate:  
+            assert all_y is not None
             all_y_ = torch.DoubleTensor(self.PCA_preprocessor.pre_fndict['fn_for_y'](all_y.copy())).to(self.device)     #TODO: 神奇的bug here
-            return all_desc, all_y_
         else:
-            raise ValueError('Data type is not supported, or unknown data source')
+            assert all_y is None
+            all_y_ = None
+        return all_desc, all_y_
 
-    def initialize_model(self, train_x, train_obj, bounds, lengthscale, state_dict=None):
+    def initialize_model(self, train_x, train_obj, lengthscale, state_dict=None):
+        assert train_x.shape[0] == train_obj.shape[0]
         train_x, train_obj = self.generate_initial_data(X=train_x, y=train_obj)
         bounds_current = self.generate_bounds(train_x, scale=(0, 1))
         ref_point_current = self.generate_ref_point(train_obj)
@@ -264,9 +297,12 @@ class MLModel:
         for i, element in enumerate(y_seq):
             # Use np.all to compare entire rows
             index = np.where((self.y_original_seq == element).all(axis=1))
-            assert index[0].size == 1, 'Element not found or repeated elements in self.y_original_seq'
-            index_val = index[0][0]  # taking the first occurrence of the element
-            df.loc[i, 'original index in excel'] = int(index_val)  # Assuming index of a 2D array
+            if index[0].size == 1:
+                index_val = index[0][0]  # taking the first occurrence of the element
+                df.loc[i, 'original index in excel'] = int(index_val)  # Assuming index of a 2D array
+            else:
+                logger.log(logging.WARNING, 'Element not found or repeated elements in self.y_original_seq', color="YELLOW")
+
             df.loc[i, 'y1'] = element[0]
             df.loc[i, 'y2'] = element[1]
             df.loc[i, 'y1_pred'] = self.y_pred[i][0]
@@ -292,65 +328,76 @@ class MLModel:
             if not torch.all(new_x[:, i] >= self.bounds[0][i]) or not torch.all(new_x[:, i] <= self.bounds[1][i]):
                 logger.log(logging.WARNING, 
                            f'Warning: Some of the generated samples are outside the bounds for dimension {i}', color='YELLOW')
+    def _check_iterData(self):
+        dir_ = os.path.join(os.path.dirname(self.df_space_path), 'iter_data')
+        files = glob.glob(f'{dir_}/*.excel')
+        logger.log(logging.INFO, f'Found {len(files)} files in {dir_}: {files}')
+        return files
+    
+    # def MOBO_one_batch(self):
+    #     MAX_N_BATCH = 100
+    #     verbose = True
+    #     self.init_num = self.X_train.shape[0]
+    #
+    #     for trial in range(1, 2):
+    #         logger.log(logging.INFO, f"\nTrial {trial:>2} of {N_TRIALS} \n")
+    #         hvs_qehvi = []
+    #         mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, \
+    #         self.bounds, self.ref_point = self.initialize_model(
+    #             train_x=self.X_train,
+    #             train_obj=self.y_train, bounds=self.bounds,
+    #             lengthscale=Interval(0.01, self.ker_lengthscale_upper)
+    #         )
+    #         bd = DominatedPartitioning(ref_point=self.ref_point, Y=self.y_trainTrans)
+    #         volume = bd.compute_hypervolume().item()
+    #         hvs_qehvi.append(volume)
+    #         logger.log(logging.INFO, f"Init Hypervolume is {volume}", color='GREEN')
+    #         logger.log(logging.INFO, "\n--------------start batches--------------\n", color='green'.upper())
+    #
+    #         for iteration in range(1, MAX_N_BATCH + 1):
+    #             fit_gpytorch_mll(mll_qehvi)
+    #             all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).to(self.device)
+    #             new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
+    #
+    #             new_x_qehvi, _ = self.optimize_qehvi_and_get_observation(
+    #                 model=model_qehvi, train_X=train_x_qehvi, train_obj=train_obj_qehvi,
+    #                 sampler=new_sampler, num_restarts=self.num_restarts,
+    #                 q_num=self.q_num, bounds=bounds, raw_samples=self.mc_samples_num,
+    #                 ref_point_=ref_point, all_descs=all_descs, max_batch_size=self.bs,
+    #                 fn_dict=self.fn_dict,
+    #                 iter_num=iteration,
+    #             )
+    #
+    #             train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
+    #             logger.log(logging.INFO, "New Samples-------------------------------------")
+    #             recommend_descs = train_x_qehvi[-self.q_num:]
+    #             torch.cuda.empty_cache()
+    #             distmin_idx = self.compute_L2dist(recommend_descs, all_descs)
+    #             self.save_recommend_comp(distmin_idx, self.df_space, recommend_descs, iter="1iters")
 
-    def MOBO_one_batch(self):
-        hvs_qehvi_all = []
-        train_x_qehvi, train_obj_qehvi, bounds, ref_point = self.init_experiment(X=self.X_train,
-                                                                                 y=self.y_train,
-                                                                                 ref_point=self.ref_point)
-        hv = Hypervolume(ref_point=ref_point)
-
-        for trial in range(1, 2):
-            logger.log(logging.INFO, f"\nTrial {trial:>2}\n")
-            hvs_qehvi = []
-            mll_qehvi, model_qehvi = self.initialize_model(train_x_qehvi, train_obj_qehvi, bounds,
-                                                           lengthscale=Interval(0.01, self.ker_lengthscale_upper))
-
-            pareto_mask = is_non_dominated(train_obj_qehvi)
-            pareto_y = train_obj_qehvi[pareto_mask]
-            volume = hv.compute(pareto_y)
-            hvs_qehvi.append(volume)
-            logger.log(logging.INFO, f"Hypervolume is {volume}")
-
-            for __ in range(1, 2):
-                fit_gpytorch_mll(mll_qehvi)
-                all_descs = torch.DoubleTensor(self.transform_PCA_fn(data=self.df_space)).to(self.device)
-                new_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples_num]))
-
-                new_x_qehvi, _ = self.optimize_qehvi_and_get_observation(
-                    model=model_qehvi, train_X=train_x_qehvi, train_obj=train_obj_qehvi,
-                    sampler=new_sampler, num_restarts=self.num_restarts,
-                    q_num=self.q_num, bounds=bounds, raw_samples=self.mc_samples_num,
-                    ref_point_=ref_point, all_descs=all_descs, max_batch_size=self.bs,
-                    fn_dict=self.fn_dict,
-                    iter_num=__,
-                )
-
-                train_x_qehvi = torch.cat([train_x_qehvi, new_x_qehvi])
-                logger.log(logging.INFO, "New Samples-------------------------------------")
-                recommend_descs = train_x_qehvi[-self.q_num:]
-                torch.cuda.empty_cache()
-                distmin_idx = self.compute_L2dist(recommend_descs, all_descs)
-                self.save_recommend_comp(distmin_idx, self.df_space, recommend_descs, iter="1iters")
-
-    def MOBO_batches(self, mode="qEHVI"):
+    def MOBO_batches(self, mode="qNEHVI", is_validate=True):
         MAX_N_BATCH = 100
         verbose = True
         N_TRIALS = 1
-        self.init_num = self.X_train.shape[0]
-
-        hvs_qehvi_all = []
-        self.bounds, self.ref_point = self.init_experiment(X=np.concatenate((self.X_train, self.X_remain)),
-                                                           y=np.concatenate((self.y_train, self.y_remain)),
-                                                           ref_point=self.ref_point)
-
+        self.init_num = self.y_train.shape[0]
+        # ================== check it is validation mode or usage mode: =================
+        if is_validate:
+            assert self.y_train.shape[0] <= self.y_original_seq.shape[0]
+            self.bounds, self.ref_point = self.init_experiment(
+                                            X=np.concatenate((self.X_train, self.X_remain)),
+                                            y=np.concatenate((self.y_train, self.y_remain)),
+                                            ref_point=self.ref_point,
+                                          )
+        else:
+            self.X_remain, self.y_remain = self.generate_search_space(data=self.df_space)
+            self.iter_files = self._check_iterData()
         for trial in range(1, N_TRIALS + 1):
             logger.log(logging.INFO, f"\nTrial {trial:>2} of {N_TRIALS} \n")
             hvs_qehvi = []
             mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, \
             self.bounds, self.ref_point = self.initialize_model(
                 train_x=self.X_train,
-                train_obj=self.y_train, bounds=self.bounds,
+                train_obj=self.y_train,
                 lengthscale=Interval(0.01, self.ker_lengthscale_upper)
             )
             bd = DominatedPartitioning(ref_point=self.ref_point, Y=self.y_trainTrans)
@@ -359,10 +406,10 @@ class MLModel:
             logger.log(logging.INFO, f"Init Hypervolume is {volume}", color='GREEN')
             logger.log(logging.INFO, "\n--------------start batches--------------\n", color='green'.upper())
 
-            for iteration in range(1, MAX_N_BATCH + 1):
+            for iteration in range(0, MAX_N_BATCH):
                 t0 = time.monotonic()
                 # ================== apply method and update trainXy: =================
-                all_X, all_y = self.transform_PCA_fn(self.X_remain, all_y=self.y_remain, validate=True)
+                all_X, all_y = self.transform_PCA_fn(data=self.X_remain, all_y=self.y_remain, validate=is_validate)
                 fit_gpytorch_mll(mll_qehvi)
                 if mode == "random":
                     new_x, new_obj, new_item_idx = self.optimize_and_get_random_observation(all_X,
@@ -383,40 +430,41 @@ class MLModel:
                         ref_point_=self.ref_point,
                         max_batch_size=self.bs,
                         all_descs=all_X, all_y=all_y,
-                        validate=True,
+                        validate=is_validate,
                         iter_num=iteration,
                     )
                 self._validate_samples(new_x)
-                self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx)
-                # ================== re-init models: ==================
-                mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, \
-                self.bounds, self.ref_point = self.initialize_model(
-                    train_x=self.X_train,
-                    train_obj=self.y_train, bounds=self.bounds,
-                    lengthscale=Interval(0.01, self.ker_lengthscale_upper)
-                )
+                self.X_remain, self.y_remain, self.X_train, self.y_train = self.update_Xy(new_item_idx,
+                                                                                          is_validate, iteration)
+                # ================== re-init models: ==================TODO: if validate mode, no need to re-init and has bug in assert(when not validate self.y_remain == None all the time)
+                if is_validate or (not is_validate and self.iter_files != []):
+                    mll_qehvi, model_qehvi, self.X_trainTrans, self.y_trainTrans, \
+                    self.bounds, self.ref_point = self.initialize_model(
+                        train_x=self.X_train,
+                        train_obj=self.y_train,
+                        lengthscale=Interval(0.01, self.ker_lengthscale_upper)
+                    )
                 # ====================== summary: ======================
                 # self.X_trainTrans = torch.cat([self.X_trainTrans, new_x])
                 # self.y_trainTrans = torch.cat([self.y_trainTrans, new_obj])
-                recommend_descs_NewTrans = self.X_trainTrans[-self.q_num:]
+                # recommend_descs_NewTrans = self.X_trainTrans[-self.q_num:]  #is new desc after new trans
                 bd = DominatedPartitioning(ref_point=self.ref_point, Y=self.y_trainTrans)
                 volume = bd.compute_hypervolume().item()
                 hvs_qehvi.append(volume)
+                # torch.cuda.empty_cache()
                 t1 = time.monotonic()
                 if verbose:
-                    print(
+                    logger.log(logging.INFO,
                         f"summary: Batch {iteration:>2}: Hypervolume of {mode} after added new items = "
                         f"{hvs_qehvi[-1]:>4.2f} "
                         f"\ntime = {t1 - t0:>4.2f}.",
-                        end="",
                     )
-                    logger.log(logging.INFO, "\n---------------------------------")
-                else:
-                    pass
+                    logger.log(logging.INFO, "---------------------------------")
+                    if not is_validate:
+                        self.save_recommend_comp(new_item_idx, self.df_space, new_x, iter=f'iter_{iteration}')
                 # ==================if break loop:==================
-                if self.y_train.shape[0] == self.y_original_seq.shape[0]:
-                    assert self.y_pred.shape[0] == self.y_train.shape[0]
-                    "y_pred does not have the enough num!"
+                if (is_validate and self.X_remain.shape[0] == 0) or (not is_validate and len(self.iter_files) <= iteration):    #self.y_train.shape[0] == self.y_original_seq.shape[0]
+                    assert self.y_pred.shape[0] == self.y_train.shape[0] 
                     self.output_exploreSeq(self.y_train)
                     break
 
@@ -454,13 +502,13 @@ class MLModel:
 
     def save_recommend_comp(self, idx, df_space, recommend_descs, all_descs=None, iter=None):
         str1 = get_str_after_substring(self.df_space_path, 'Ru')
-        df_space.iloc[idx, :].to_csv(f"recommend_comp{str1}-{iter}.csv", index=True, header=True)
-        logger.log(logging.INFO, df_space.iloc[idx, 0:4])
+        df_space.iloc[idx, :].to_csv(f"data/iter_record/recommend_comp{str1}-{iter}.csv", index=True, header=True)
+        logger.log(logging.INFO, f'new samples:\n{df_space.iloc[idx, 0:4]}')
         df = pd.DataFrame(recommend_descs.cpu().numpy())
-        df.to_csv(f"recommend_descs{str1}-{iter}.csv", index=True, header=False)
+        df.to_csv(f"data/iter_record/recommend_descs{str1}-{iter}.csv", index=True, header=False)
         if all_descs is not None:
             df_desc = pd.DataFrame(all_descs.cpu().numpy())
-            df_desc.to_csv(f"all_PCAdescs{str1}-{iter}.csv", index=True, header=False)
+            df_desc.to_csv(f"data/iter_record/all_PCAdescs{str1}-{iter}.csv", index=True, header=False)
 
     def compute_L2dist(self, target_obj, space):
         dm = torch.cdist(target_obj, space)

@@ -7,7 +7,6 @@ import datetime
 from sklearn.decomposition import PCA      
 from sklearn.feature_selection import mutual_info_regression
 import os
-import csv
 
 # from ax import *
 # from ax.core.metric import Metric
@@ -22,92 +21,12 @@ from sklearn.model_selection import train_test_split
 from utils.parser_ import get_args
 from utils.utils_ import *
 from utils import logger
-from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis, plot_PCA_matminer_heatmap
+from preprocessing import Preprocessing, Add_extract_descriptors
+# from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis, plot_PCA_matminer_heatmap
 # from train import cross_train_validation, cycle_train, elem1_train_and_plot
-from train import *
+from train import * #TODO import ML就不行...
 from validate import *
 from sklearn.model_selection import train_test_split
-
-
-def Preprocessing(data_path, col_labels=None):
-    df = get_data(data_path, col_labels) #
-    if 'OER' in data_path:
-        df = clean_df_OER(df)
-        df = add_formula_col_OER(df)
-    elif 'PCE' in data_path:
-        df = clean_df_PCE(df)
-        df = add_formula_col_PCE(df)
-    else:
-        raise ValueError('data_path should contain PCE or OER')
-    df_cleaned = sort_clean_df(df)
-    df = add_comp_col(df_cleaned)
-    return df
-
-def clean_df_OER(df_pec_data):
-    df_pec_data['material'] = df_pec_data['material'].ffill()
-    df_pec_data.dropna(axis=0, how='all', inplace=True)
-    df_pec_data = df_pec_data.reset_index(drop=True)
-    return df_pec_data
-
-def clean_df_PCE(df_pec_data):
-    # df_pec_data = df_pec_data.sort_values(['Sample'], ignore_index = True)
-    df_pec_data.dropna(axis=0, how='all', inplace=True)
-    df_pec_data = df_pec_data.reset_index(drop=True)
-    return df_pec_data
-
-def get_data(path, col_labels=None):
-    '''read data'''
-    if col_labels==None:
-        df_pec_data = pd.read_excel(path)
-    else:
-        df_pec_data = pd.read_excel(path, header = 0)
-        df_pec_data.columns = eval(col_labels)
-    return df_pec_data
-
-def add_formula_col_PCE(daf):
-    daf['formula'] = daf['Element']                           #为pd数据格式加了一列formula数据
-    return daf
-
-def add_formula_col_OER(daf):
-    formula_list = []
-    spt_proportions = [i.split(':') for i in daf['Elemental proportions'][1:]]          #remove the first row
-    spt_materials = [i.split(':') for i in daf['material'][1:]]
-    for i in range(len(spt_proportions)):
-        formula = ''
-        for j in range(len(spt_proportions[i])):
-            spt_proportions[i][j] = str(round(float(spt_proportions[i][j])*0.1, 4))
-            formula += spt_materials[i][j] + spt_proportions[i][j]
-        formula_list.append(formula)
-    daf['formula'] = [daf['material'][0]] + formula_list   #为pd数据格式加了一列formula数据
-
-    return daf
-
-
-def sort_clean_df(daf):
-    # df_pec_data_cleaned = df_pec_data_sorted        #不去除同组成的data
-    # df_pec_data_cleaned = df_pec_data_sorted.drop_duplicates('formula', keep='last',ignore_index=True)  #pd格式下按相同的formula过滤，并只留下最后一个P最大的
-    # df_pec_data_sorted = df_pec_data.sort_values(by=['formula', P_cal_form], ascending = True) #升序排列
-    return daf
-
-def add_comp_col(daf):
-    df_pec = StrToComposition().featurize_dataframe(daf, "formula") #似乎是按前几列的colum label整理target col的数据，输出含有前几列的label，并作为新的col添加到pd中
-    return df_pec
-
-def Add_extract_descriptors(df_pec, use_concentration):
-    ep_feat = ElementProperty.from_preset(preset_name="magpie")
-    df_pec_magpie = ep_feat.featurize_dataframe(df_pec, col_id="composition")  #这两行是matminer的固定操作，用于加入描述符col
-    _ = df_pec_magpie.shape[1] - 132           # changed param1 
-
-    if use_concentration:
-        #在df的列名中判断是否有Concentration这一列
-        assert 'Concentration' in df_pec_magpie.columns
-        desc = pd.concat([ df_pec_magpie['Concentration'], df_pec_magpie.iloc[:, _:] ], axis=1)
-    else:
-        desc = df_pec_magpie.iloc[:, _:]
-    return desc
-
-def select_train_elems():
-    return X_inp_list[0][elem1_indx_random], y_outp_list[0][elem1_indx_random] #只对num_elements==3的数据进行训练 #(并且只用其中随机抽取的20个元素)
 
 
 def filter_byMI(X, y, thr=0.0001):
@@ -231,7 +150,7 @@ class PCA_preprocessor:
 
 def Main(args, args_general, args_pre, args_BO):
     # 1. Import Data and Preprocessing 
-    df = Preprocessing(args.data_path, args.col_labels)
+    df = Preprocessing(args.data_path)
 
     # 2 .Build composition descriptors (from `matminer`)
     descs = Add_extract_descriptors(df, args.use_concentration)
@@ -256,6 +175,7 @@ def Main(args, args_general, args_pre, args_BO):
     
     kwargs_BO = vars(args_BO)
     kwargs_BO.update({'PCA_preprocessor': preprocessor})
+    kwargs_BO.update({'y_col_names': args.model})
     kwargs_BO.update({'y_original_seq': y_pmax})
     if X_remain is not None and y_remain is not None:
         kwargs_BO.update({'X_remain': X_remain})
@@ -287,8 +207,9 @@ def Main(args, args_general, args_pre, args_BO):
         #                      args.split_ratio)
         # 3：
         # Model.MOBO_one_batch()
-        Model.MOBO_batches(mode="qEHVI")
-        # Model.MOBO_batches(mode="random")
+        # Model.MOBO_batches(mode="qNEHVI", is_validate=False)
+        Model.MOBO_batches(mode="random", is_validate=True)
+        # Model.MOBO_batches(mode="qNEHVI", is_validate=True)
 
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)
