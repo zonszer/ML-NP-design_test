@@ -208,8 +208,8 @@ def Main(args, args_general, args_pre, args_BO):
         # 3：
         # Model.MOBO_one_batch()
         # Model.MOBO_batches(mode="qNEHVI", is_validate=False)
-        Model.MOBO_batches(mode="random", is_validate=True)
-        # Model.MOBO_batches(mode="qNEHVI", is_validate=True)
+        # Model.MOBO_batches(mode="random", is_validate=True)
+        Model.MOBO_batches(mode="qNEHVI", is_validate=True)
 
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)
