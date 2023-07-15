@@ -25,7 +25,7 @@ from preprocessing import Preprocessing, Add_extract_descriptors
 # from plot import plt_true_vs_pred, plot_Xy_relation, plot_desc_distribution, plot_CycleTrain, plot_PCA_vis, plot_PCA_matminer_heatmap
 # from train import cross_train_validation, cycle_train, elem1_train_and_plot
 from train import * #TODO import ML就不行...
-from validate import *
+# from validate import *
 from sklearn.model_selection import train_test_split
 
 
@@ -178,10 +178,10 @@ def Main(args, args_general, args_pre, args_BO):
     kwargs_BO.update({'y_col_names': args.model})
     kwargs_BO.update({'y_original_seq': y_pmax})
     if X_remain is not None and y_remain is not None:
-        kwargs_BO.update({'X_remain': X_remain})
-        kwargs_BO.update({'y_remain': y_remain})
+        kwargs_BO.update({'X_remain_o': X_remain})
+        kwargs_BO.update({'y_remain_o': y_remain})
 
-    Model = MLModel(X_train=X_init, y_train=y_init,
+    Model = MLModel(X_train_o=X_init, y_train_o=y_init,
                     save_file_instance=save_file_instance,
                     df_space_path=args.data_search_space,
                     **kwargs_BO)
@@ -207,9 +207,9 @@ def Main(args, args_general, args_pre, args_BO):
         #                      args.split_ratio)
         # 3：
         # Model.MOBO_one_batch()
-        # Model.MOBO_batches(mode="qNEHVI", is_validate=False)
-        # Model.MOBO_batches(mode="random", is_validate=True)
-        Model.MOBO_batches(mode="qNEHVI", is_validate=True)
+        Model.MOBO_batches(mode="qNEHVI", is_validate=False, N_TRIALS=3)
+        # Model.MOBO_batches(mode="random", is_validate=True, N_TRIALS=3)
+        # Model.MOBO_batches(mode="qNEHVI", is_validate=True, N_TRIALS=3)
 
         # log_values = cycle_train([X, y], [X_test, y_test], args.num_restarts, args.ker_lengthscale_upper, args.ker_var_upper)
         # plot_CycleTrain(y_list_descr, X, X_test)

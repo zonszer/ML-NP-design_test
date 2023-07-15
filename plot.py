@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.feature_selection import RFE
 from sklearn.feature_selection import mutual_info_regression
+from sklearn.preprocessing import StandardScaler
 
 from ax.utils.notebook.plotting import render, init_notebook_plotting
 from ax.plot.pareto_utils import compute_posterior_pareto_frontier
@@ -194,35 +195,6 @@ def plot_PCA_vis(X, y):
     ax.view_init(elev=30, azim=45)
     plt.show()
 
-
-    # import chart_studio
-    # import chart_studio.plotly as py
-    # import pandas as pd
-    # import plotly.express as px, plotly
-    # # from plotly.plotly import plot, iplot, init_notebook_mode
-    #
-    # chart_studio.tools.set_credentials_file(username='zonszer', api_key='bPmcbyflVVaQYqrbiylA')
-    #
-    #
-    # # Convert the processed data into a DataFrame
-    # data = pd.DataFrame(X_pca_norm, columns=['1st Eigenvector', '2nd Eigenvector', '3rd Eigenvector'])
-    # data['Average Ratio over Control'] = y
-    #
-    # # Create the interactive 3D scatterplot
-    # fig = px.scatter_3d(data, x='1st Eigenvector', y='2nd Eigenvector', z='3rd Eigenvector', color='Average Ratio over Control',
-    #                     color_continuous_scale=px.colors.sequential.YlOrRd, opacity=0.8)
-    #
-    # fig.update_layout(scene=dict(xaxis_title='1st Eigenvector',
-    #                              yaxis_title='2nd Eigenvector',
-    #                              zaxis_title='3rd Eigenvector'),
-    #                   title='PCE Dataset Clustering Analysis After PCA Dimensionality Reduction',
-    #                   coloraxis_colorbar=dict(title='Average Ratio over Control'),
-    #                  )
-    #
-    # # fig.show()
-    # py.iplot(fig, filename='PCE_PCA-vis')
-    # # plot(fig, filename='plotly_figure.html')
-
 def plot_PCA_matminer_heatmap(X_matminer, X_pca, matminer_colnames):
     from sklearn.preprocessing import StandardScaler
     import seaborn as sns
@@ -257,4 +229,82 @@ def plot_PCA_matminer_heatmap(X_matminer, X_pca, matminer_colnames):
     sns.heatmap(correlations_df, annot=True, cmap="RdBu_r")
     plt.title("Correlations between original features and PCA components")
     plt.show()
+ 
+#%% 
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+import numpy as np
 
+
+def get_regret(sub_df ):
+    # Scalar (normalize) the target columns, y1 and y2, and add them 
+    std_scaler_y1 = StandardScaler()
+    std_scaler_y2 = StandardScaler()
+    y1 = std_scaler_y1.fit_transform(sub_df["y1"].values.reshape(-1, 1))[:, -1]
+    y2 = -std_scaler_y2.fit_transform(sub_df["y2"].values.reshape(-1, 1))[:, -1]
+
+    sub_df["y1y2_hv"] = (y1 - y1.min()) * (y2 - y2.min())
+    #Identify the global optimum
+    glob_opt_hv, glob_opt_idx = sub_df["y1y2_hv"].max(), sub_df["y1y2_hv"].idxmax()    # idxmax provides the index of max value 
+
+    #Calculate the regret for each row and add as a new column
+    sub_df["regret"] = glob_opt_hv - sub_df["y1y2_hv"]
+    sub_df["hv_rank"] = sub_df["y1y2_hv"].rank(ascending=False)
+    return sub_df, glob_opt_idx
+
+def plot_overallRegret(df, method, ax, iter_budget=5, with_stderr=True, color='blue'):
+    # Filter dataframe to include only rows with method == method
+    df = df.dropna()
+    seeds = df['seed'].unique()
+    trace_list = []
+    glob_opt_idx_list = []
+    overall_regret_list = []
+    sum_hvRank_list = []
+    for seed in seeds:
+        sub_df = df[df['seed']==seed]
+        sub_df = sub_df[sub_df["iter"] > 0]
+        sub_df, glob_opt_idx = get_regret(sub_df) 
+        sum_overall_regret = sub_df["regret"][sub_df["iter"] <= iter_budget].sum()
+        sum_hvRank = sub_df["hv_rank"][sub_df["iter"] <= iter_budget].sum()
+
+        overall_regret_list.append(sum_overall_regret)
+        glob_opt_idx_list.append(sub_df.loc[glob_opt_idx])
+        trace_list.append(sub_df['regret'][:50].values)
+        sum_hvRank_list.append(sum_hvRank)
+
+    # Plot the overall regret and other data here:
+    trace_list = np.array(trace_list)
+    mean = np.nanmean(trace_list, axis=0)
+    stderr = np.nanstd(trace_list, axis=0, ddof=1)/ np.sqrt(np.shape(trace_list)[0]-1)
+
+    x = np.arange(np.shape(trace_list)[1])+1
+
+    # Plot the overall regret versus iter num
+    ax.plot(x, mean, color=color, linewidth=1.5, 
+            label=f"{method} glob_opt_idx" #{[int(glob_opt_idx_list[i]['original index in excel']) for i in range(len(glob_opt_idx_list))]},"
+                f"found in iter:{[int(glob_opt_idx_list[i]['iter']) for i in range(len(glob_opt_idx_list))]}"
+                f"\nSum overall_regret on first {int(iter_budget)} iters: {int(np.array(overall_regret_list).mean())}"
+                f"\nSum hvRank on first {int(iter_budget)} iters: {int(np.array(sum_hvRank_list).mean())}")
+
+    if with_stderr: 
+        ax.fill_between(x, y1=mean-1.96*stderr, y2=mean+1.96*stderr, alpha=0.2, color=color)
+        ax.plot(x, mean-1.96*stderr, color=color, linewidth=1, alpha=0.5)
+        ax.plot(x, mean+1.96*stderr, color=color, linewidth=1, alpha=0.5)
+
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Regret")
+    ax.set_title("Bayesian Regret(all smaller better)")
+    ax.legend(loc='lower right', fancybox=True, ncol=2)
+    ax.grid(True)
+
+#=============================
+fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharex=False)
+# Read the CSV file into the DataFrame
+df = pd.read_csv('data/explored_sequence/MOBO_batches-qNEHVI.csv', index_col=0)
+plot_overallRegret(df, method='qNEHVI', ax=axes[0], iter_budget=5, with_stderr=True, color='blue')
+
+df = pd.read_csv('data/explored_sequence/MOBO_batches-random.csv', index_col=0)
+plot_overallRegret(df, method='Random', ax=axes[1], iter_budget=5, with_stderr=True, color='blue')
+
+plt.tight_layout()
