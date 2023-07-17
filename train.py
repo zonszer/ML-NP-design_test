@@ -279,11 +279,11 @@ class MLModel:
         train_x, train_obj = self.generate_initial_data(X=train_x, y=train_obj)
         bounds_current = self.generate_bounds(train_x, scale=(0, 1))
         ref_point_current = self.generate_ref_point(train_obj)
-        ker = MaternKernel(nu=2.5, ard_num_dims=normalize(train_x, bounds_current).shape[-1],
-                           lengthscale_constraint=lengthscale).to(self.device)
-        ker = ScaleKernel(ker)
+        # ker = MaternKernel(nu=2.5, ard_num_dims=normalize(train_x, bounds_current).shape[-1],
+        #                    lengthscale_constraint=lengthscale).to(self.device)
+        # ker = ScaleKernel(ker)
         model = SingleTaskGP(normalize(train_x, bounds_current), train_obj, #covar_module=ker,
-                             outcome_transform=Standardize(m=train_obj.shape[-1]))
+                             outcome_transform=Standardize(m=train_obj.shape[-1]), lengthscale=lengthscale)
         # model_parameters = model.state_dict()
         if state_dict is not None:
             model.load_state_dict(state_dict)
@@ -338,7 +338,7 @@ class MLModel:
         return files
     
 
-    def MOBO_batches(self, mode="qNEHVI", is_validate=True, N_TRIALS=1, MAX_N_BATCH=100):
+    def MOBO_batches(self, mode="qNEHVI", is_validate=True, N_TRIALS=1, MAX_N_BATCH=100, id='XXX'):
         verbose = True
         self.init_num = self.y_train_o.shape[0]
         self.df_saveList = []
@@ -434,7 +434,7 @@ class MLModel:
                     break
         if is_validate:
             merged_df = pd.concat(self.df_saveList)
-            merged_df.to_csv(f"data/explored_sequence/MOBO_batches-{mode}.csv", index=True, header=True)
+            merged_df.to_csv(f"data/explored_sequence/{id}-{mode}.csv", index=True, header=True)
 
     def SOBO_one_batch(self):
         train_x_ucb, train_obj_ucb, bounds, _ = self.init_experiment(X=self.X_train, y=self.y_train,

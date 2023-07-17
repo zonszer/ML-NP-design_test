@@ -251,16 +251,39 @@ def get_regret(sub_df ):
     #Calculate the regret for each row and add as a new column
     sub_df["regret"] = glob_opt_hv - sub_df["y1y2_hv"]
     sub_df["hv_rank"] = sub_df["y1y2_hv"].rank(ascending=False)
+    sub_df['cum_max_hv'] = sub_df['y1y2_hv'].cummax()
+    sub_df['cum_min_regret'] = sub_df["regret"].cummin()
     return sub_df, glob_opt_idx
 
-def plot_overallRegret(df, method, ax, iter_budget=5, with_stderr=True, color='blue'):
+
+def get_cum_values(q_num, cum_max_hv_list, cum_mode='max'):
+    seed_list = []
+    assert cum_mode == 'max' or cum_mode == 'min'
+    for j in range(len(cum_max_hv_list)):
+        current_seed_list = cum_max_hv_list[j]
+        if len(current_seed_list) % q_num != 0:
+            cum_max_hv = np.zeros((len(current_seed_list)//q_num + 1, ))
+        else:
+            cum_max_hv = np.zeros((len(current_seed_list)//q_num, ))
+
+        for i in range(0, (len(current_seed_list) // q_num)):
+            cum_max_hv[i] = eval(cum_mode)(current_seed_list[i*q_num: (i+1)*q_num])
+        if len(current_seed_list) % q_num != 0:
+            cum_max_hv[-1] = eval(cum_mode)(current_seed_list[-(len(current_seed_list) % q_num):])
+        seed_list.append(cum_max_hv)
+    return np.array(seed_list)
+
+
+def plot_overallRegret(df, method, ax, iter_budget=5, with_stderr=True, color='blue', iter_nums=100, q_num=2):
     # Filter dataframe to include only rows with method == method
     df = df.dropna()
     seeds = df['seed'].unique()
     trace_list = []
     glob_opt_idx_list = []
     overall_regret_list = []
-    sum_hvRank_list = []
+    hvRank_list = []
+    cum_max_hv_list = []
+    cum_min_regret_list= []
     for seed in seeds:
         sub_df = df[df['seed']==seed]
         sub_df = sub_df[sub_df["iter"] > 0]
@@ -268,43 +291,56 @@ def plot_overallRegret(df, method, ax, iter_budget=5, with_stderr=True, color='b
         sum_overall_regret = sub_df["regret"][sub_df["iter"] <= iter_budget].sum()
         sum_hvRank = sub_df["hv_rank"][sub_df["iter"] <= iter_budget].sum()
 
-        overall_regret_list.append(sum_overall_regret)
         glob_opt_idx_list.append(sub_df.loc[glob_opt_idx])
-        trace_list.append(sub_df['regret'][:50].values)
-        sum_hvRank_list.append(sum_hvRank)
+        trace_list.append(sub_df['regret'][:iter_nums*q_num].values)
+        hvRank_list.append(sum_hvRank)
+        overall_regret_list.append(sum_overall_regret)
+        cum_min_regret_list.append(sub_df['cum_min_regret'][:iter_nums*q_num].values)
+        cum_max_hv_list.append(sub_df['cum_max_hv'][:iter_nums*q_num].values)
 
-    # Plot the overall regret and other data here:
-    trace_list = np.array(trace_list)
-    mean = np.nanmean(trace_list, axis=0)
-    stderr = np.nanstd(trace_list, axis=0, ddof=1)/ np.sqrt(np.shape(trace_list)[0]-1)
+    # 1. Plot the overall regret and other data here:
+    # trace_list = get_cum_values(q_num, cum_min_regret_list, cum_mode='min')
+    # mean = np.nanmean(trace_list, axis=0)
+    # stderr = np.nanstd(trace_list, axis=0, ddof=1)/ np.sqrt(np.shape(trace_list)[0]-1)
+    # ax.set_ylabel("Regret")
+    # ax.set_title("Bayesian Regret(smaller is better)")
 
-    x = np.arange(np.shape(trace_list)[1])+1
+    # 2. Plot the cumulated hv and other data here:
+    cum_max_hv_list = get_cum_values(q_num, cum_max_hv_list, cum_mode='max')
+    mean = np.nanmean(cum_max_hv_list, axis=0)
+    stderr = np.nanstd(cum_max_hv_list, axis=0, ddof=1)/ np.sqrt(np.shape(cum_max_hv_list)[0]-1)
+    ax.set_ylabel("hypervolume")
+    ax.set_title("hv values(bigger is better)")
 
+    x = np.arange(iter_nums)+1
     # Plot the overall regret versus iter num
+    if x.shape[0] > mean.shape[0]:
+        x = x[:mean.shape[0]] 
     ax.plot(x, mean, color=color, linewidth=1.5, 
             label=f"{method} glob_opt_idx" #{[int(glob_opt_idx_list[i]['original index in excel']) for i in range(len(glob_opt_idx_list))]},"
                 f"found in iter:{[int(glob_opt_idx_list[i]['iter']) for i in range(len(glob_opt_idx_list))]}"
-                f"\nSum overall_regret on first {int(iter_budget)} iters: {int(np.array(overall_regret_list).mean())}"
-                f"\nSum hvRank on first {int(iter_budget)} iters: {int(np.array(sum_hvRank_list).mean())}")
+                f"\nAvg overall_regret on first {int(iter_budget)} iters: {int(np.array(overall_regret_list).mean())}"
+                f"\nAvg hvRank on first {int(iter_budget)} iters: {int(np.array(hvRank_list).mean())}")
 
     if with_stderr: 
         ax.fill_between(x, y1=mean-1.96*stderr, y2=mean+1.96*stderr, alpha=0.2, color=color)
         ax.plot(x, mean-1.96*stderr, color=color, linewidth=1, alpha=0.5)
         ax.plot(x, mean+1.96*stderr, color=color, linewidth=1, alpha=0.5)
-
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Regret")
-    ax.set_title("Bayesian Regret(all smaller better)")
     ax.legend(loc='lower right', fancybox=True, ncol=2)
     ax.grid(True)
 
+
 #=============================
-fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharex=False)
-# Read the CSV file into the DataFrame
-df = pd.read_csv('data/explored_sequence/MOBO_batches-qNEHVI.csv', index_col=0)
-plot_overallRegret(df, method='qNEHVI', ax=axes[0], iter_budget=5, with_stderr=True, color='blue')
+if __name__ == "__main__":
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharex=True, sharey=True)
+    # Read the CSV file into the DataFrame
+    df = pd.read_csv('data/explored_sequence/MOBObatches_scale50_seed2-qNEHVI.csv', index_col=0)
+    plot_overallRegret(df, method='qNEHVI', ax=axes[0], iter_budget=5, with_stderr=True, color='blue')
 
-df = pd.read_csv('data/explored_sequence/MOBO_batches-random.csv', index_col=0)
-plot_overallRegret(df, method='Random', ax=axes[1], iter_budget=5, with_stderr=True, color='blue')
+    df = pd.read_csv('data/explored_sequence/MOBObatches_scale50_seed2-random.csv', index_col=0)
+    plot_overallRegret(df, method='Random', ax=axes[1], iter_budget=5, with_stderr=True, color='blue')
 
-plt.tight_layout()
+    plt.tight_layout()
+
+# %%

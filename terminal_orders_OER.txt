@@ -170,5 +170,25 @@ python -utt PCE_analysis.py  --id=MOBO_onebatch07 --data_path=data/OER-Summary-L
 
 python -utt PCE_analysis.py  --id=MOBO_onebatch07 --data_path=data/OER-Summary-LZ-1iters.xlsx --model=Mass-activity-at-1.43V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=18 --ker_lengthscale_upper=10 --bs=1024 --q_num=7 --mc_samples_num=1024 --data_search_space=data/SearchSpace_3elems_Ru0.7.pkl --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA --seed=7777
 
+====use BO regret to validate hyparams=====7.15 settings==========
+（now doing scale=10
+
+python -utt PCE_analysis.py --id=MOBObatches_dim14 --data_path=data/OER-Summary-LZ-1iters.xlsx --model=Mass-activity-at-1.43V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=14 --ker_lengthscale_upper=100 --bs=1024 --q_num=2 --mc_samples_num=1024 --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA --split_ratio=0.87 --seed=210  (lengthscale no limit -> save to /seq
+
+python -utt PCE_analysis.py --id=MOBObatches_scale50 --data_path=data/OER-Summary-LZ-1iters.xlsx --model=Mass-activity-at-1.43V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=18 --ker_lengthscale_upper=50 --bs=1024 --q_num=2 --mc_samples_num=1024 --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA --split_ratio=0.87 --seed=210
+
+python -utt PCE_analysis.py --id=MOBObatches_scale50_seed1 --data_path=data/OER-Summary-LZ-1iters.xlsx --model=Mass-activity-at-1.43V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=18 --ker_lengthscale_upper=50 --bs=1024 --q_num=2 --mc_samples_num=1024 --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA --split_ratio=0.87 --seed=1
+
+python -utt PCE_analysis.py --id=MOBObatches_scale50_seed2 --data_path=data/OER-Summary-LZ-1iters.xlsx --model=Mass-activity-at-1.43V+slope-relative-to-Ru --PCA_dim_select_method=assigned --num_restarts=15 --PCA_dim=18 --ker_lengthscale_upper=50 --bs=1024 --q_num=2 --mc_samples_num=1024 --use_y_norm --is_MOBO --use_MI_filter --use_Xnorm_afterPCA --split_ratio=0.87 --seed=2
+
+
+
+
+
+
+
+
+
+
 
 
